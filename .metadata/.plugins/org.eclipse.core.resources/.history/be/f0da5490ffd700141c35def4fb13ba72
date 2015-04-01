@@ -1,0 +1,19 @@
+/*
+ * defs.h
+ *
+ *  Created on: Mar 31, 2015
+ *      Author: arpit
+ */
+
+#ifndef SRC_HEADERS_DEFS_H_
+#define SRC_HEADERS_DEFS_H_
+
+#define MESSAGE_TYPE_CHAT "Chat:"
+#define MESSAGE_TYPE_STATUS "Status:"
+#define MESSAGE_TYPE_ELECTION "Election:"
+#define MESSAGE_TYPE_USERLIST "UserList:"
+
+
+
+
+#endif /* SRC_HEADERS_DEFS_H_ */

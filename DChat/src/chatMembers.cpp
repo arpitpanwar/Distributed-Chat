@@ -1,6 +1,3 @@
-#include<chatMembers.h>
-
-namespace chatMembers {
+#include "headers/chatMembers.h"
 
 
-}

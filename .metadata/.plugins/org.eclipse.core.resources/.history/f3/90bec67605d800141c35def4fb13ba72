@@ -1,0 +1,18 @@
+#include "defs.h"
+
+using namespace std;
+
+class chat_node{
+
+public:
+	chat_node(string userName,int entry);
+	~chat_node();
+
+private :
+	string sUserName;
+	int iEntryNum;
+	bool bIsLeader;
+	map<string,string> mClientmap;
+	long lSequencenums;
+	list<string> lPrintQueue;
+};

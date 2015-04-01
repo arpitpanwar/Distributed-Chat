@@ -1,0 +1,16 @@
+/*
+ * defs.h
+ *
+ *  Created on: Mar 31, 2015
+ *      Author: arpit
+ */
+
+#ifndef SRC_HEADERS_DEFS_H_
+#define SRC_HEADERS_DEFS_H_
+
+#define MESSAGE_TYPE_CHAT "Chat:"
+
+
+
+
+#endif /* SRC_HEADERS_DEFS_H_ */

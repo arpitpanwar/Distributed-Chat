@@ -1,0 +1,16 @@
+#include "defs.h"
+
+using namespace std;
+
+class chat_node{
+
+public:
+	chat_node(std::string userName,int entry);
+	~chat_node();
+
+private :
+	std::string userName;
+	int entryNum;
+	bool isLeader;
+	map<string,string> clientmap;
+};

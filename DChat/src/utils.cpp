@@ -1,29 +1,39 @@
-#include <iostream>
-#include<cstdlib>
+#include <stdio.h>
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <string>
+#include <arpa/inet.h>
+
+#include "headers/defs.h"
 
 using namespace std;
 
 string findip(){
-	FILE *stream;
-	string data;
-	char ipaddress[16];
-	char buffer[1000];
-	stream = popen("/sbin/ifconfig | grep inet ","r");
+    struct ifaddrs * ifAddrStruct=NULL;
+    struct ifaddrs * ifa=NULL;
+    void * tmpAddrPtr=NULL;
 
-	if (stream) {
-		while (!feof(stream))
-			if (fgets(buffer, 1000, stream) != NULL){
-				data.append(buffer);
-			}
-		pclose(stream);
-	}
-	//erase two lines because the ipaddress lies in the third line
-	data.erase(0, data.find("\n") + 1);
-	data.erase(0, data.find("\n") + 1);
-	//TODO ::changing the size of ipaddress to 16 is leading to unexpected results
-	memcpy(ipaddress,data.c_str()+20,15);
-	return ipaddress;
+    getifaddrs(&ifAddrStruct);
 
-
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
+            continue;
+        }
+        if (ifa->ifa_addr->sa_family == AF_INET) { // check it is IP4
+            // is a valid IP4 Address
+            tmpAddrPtr=&((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+            string name(ifa->ifa_name);
+            if(name.compare(DEFAULT_INTERFACE)==0){
+            	string address(addressBuffer);
+            	return address;
+            }
+            //printf("%s IP Address %s\n", ifa->ifa_name, addressBuffer);
+        }
+    }
+    if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
+    return NULL;
 
 }
