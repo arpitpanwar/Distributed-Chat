@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <string>
 #include <arpa/inet.h>
+#include<iostream>
 
 #include "headers/defs.h"
 
@@ -35,5 +36,16 @@ string findip(){
     }
     if (ifAddrStruct!=NULL) freeifaddrs(ifAddrStruct);
     return NULL;
+
+}
+void printAllUsers(map<string,string> clientMap ,bool isLeader){
+	map<string,string>::iterator pos;
+		for(pos = clientMap.begin(); pos != clientMap.end();++pos ){
+			cout <<pos->first <<" "<<pos->second;
+			if(isLeader)
+				cout<<" Leader";
+			cout << "\n";
+		}
+
 
 }

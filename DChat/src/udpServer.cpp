@@ -5,7 +5,7 @@
 #include<arpa/inet.h>
 #include<unistd.h>
 
-udp_Server::udp_Server(char *ipAddr, int port ){
+udp_Server::udp_Server(const char *ipAddr, int port ){
 	f_port = port;
 	f_addr = inet_addr(ipAddr);
 	f_socket = socket(AF_INET, SOCK_DGRAM , 0 );

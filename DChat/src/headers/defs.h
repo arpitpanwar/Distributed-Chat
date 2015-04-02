@@ -27,9 +27,10 @@
 #define MESSAGE_TYPE_STATUS_ALIVE "Alive"
 #define MESSAGE_TYPE_STATUS_ISALIVE "IsAlive"
 
-#define DEFAULT_INTERFACE "eth0"
+#define DEFAULT_INTERFACE "wlan0"
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
+#define NUM_THREADS 2
 
 #endif /* SRC_HEADERS_DEFS_H_ */

@@ -22,7 +22,7 @@ std::string findip();
 class udp_Server{
 public :
 	//Constructor of the UDP server being created
-	udp_Server( char *ipAddr, int port );
+	udp_Server(const char *ipAddr, int port );
 	//Destructor of the UDP server
 	~udp_Server();
 
@@ -38,7 +38,7 @@ private :
 	int f_port;
 	std::string f_addr;
 	struct sockaddr_in f_addrserver;
-	 USER_DETAILS f_user[15];
+	USER_DETAILS f_user[25];
 
 };
 

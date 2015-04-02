@@ -21,22 +21,12 @@ typedef struct leader{
 class chat_node{
 
 public:
-	chat_node(string userName,int entry);
-	~chat_node();
-	long getSequenceNumber();
-	LEADER getLeader();
-	bool getIsLeader();
-	string getUserName();
-	map<string,string> getClientMap();
-	list<string> getPrintQueue();
-	list<string> getSendQueue();
-	list<MESSAGE> getHoldbackQueue();
-	map<string,list<string> > getAckMap();
-	MESSAGE getNextMessage();
+	chat_node(string userName,int entry,string ipaddr , string port  );
 
-private :
+	~chat_node();
 	bool bIsLeader;
 	long lSequencenums;
+	int entryNum;
 	string sUserName;
 	LEADER lead;
 	map<string,string> mClientmap;
