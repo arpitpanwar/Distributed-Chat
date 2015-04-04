@@ -5,8 +5,6 @@
  *      Author: arpit
  */
 
-
-
 #ifndef SRC_HEADERS_DEFS_H_
 #define SRC_HEADERS_DEFS_H_
 
@@ -31,6 +29,6 @@
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
-#define NUM_THREADS 2
+#define NUM_THREADS 5
 
 #endif /* SRC_HEADERS_DEFS_H_ */

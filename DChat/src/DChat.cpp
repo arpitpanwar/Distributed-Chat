@@ -19,7 +19,9 @@
 
 #include "headers/udpserver.h"
 #include "headers/defs.h"
-#include "headers/chatMembers.h"
+#include "headers/chatstructures.h"
+
+
 void printAllUsers(map<string,string> clientMap ,bool isLeader);
 using namespace std;
 
@@ -49,6 +51,7 @@ void *recvMsg(void *id){
 
 	}
 
+	/*return;*/
 }
 void *sendMsg(void *id){
 	struct sockaddr_in client;
@@ -127,21 +130,9 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		}
 
-
-
-
-
 	while(1){
 
 	}
-
-
-
-
-
-
-
-
 
 	return 0;
 }

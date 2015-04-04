@@ -6,8 +6,6 @@
 typedef struct user_details{
 	struct sockaddr_in f_addrclient;
 
-
-
 }USER_DETAILS;
 
 

@@ -38,6 +38,7 @@ string findip(){
     return NULL;
 
 }
+
 void printAllUsers(map<string,string> clientMap ,bool isLeader){
 	map<string,string>::iterator pos;
 		for(pos = clientMap.begin(); pos != clientMap.end();++pos ){
@@ -46,6 +47,4 @@ void printAllUsers(map<string,string> clientMap ,bool isLeader){
 				cout<<" Leader";
 			cout << "\n";
 		}
-
-
 }
