@@ -1,6 +1,6 @@
 #include "headers/chatstructures.h"
 
-chat_node::chat_node(string userName,int entry,string ipaddr, string port ){
+chat_node::chat_node(string userName,int entry,string ipaddr, int port ){
 	sUserName = userName;
 
 	entryNum = entry;

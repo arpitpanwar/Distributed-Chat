@@ -40,12 +40,12 @@ std::string udp_Server::get_addr() const {
 	return f_addr;
 }
 
-int udp_Server::get_message(char *msg, size_t max_size , int clientid){
-	int len = sizeof(f_user[clientid].f_addrclient);
-	return ::recvfrom(f_socket, msg,max_size, 0, (struct sockaddr *) &f_user[clientid].f_addrclient, (socklen_t *)&len);
-}
-
-int udp_Server::send_message(char *msg, size_t max_size ,int clientid){
-	return::sendto(f_socket,msg,max_size,0,(struct sockaddr *) &f_user[clientid].f_addrclient,(socklen_t)sizeof(struct sockaddr));
-}
+//int udp_Server::get_message(char *msg, size_t max_size , int clientid){
+//	int len = sizeof(f_user[clientid].f_addrclient);
+//	return ::recvfrom(f_socket, msg,max_size, 0, (struct sockaddr *) &f_user[clientid].f_addrclient, (socklen_t *)&len);
+//}
+//
+//int udp_Server::send_message(char *msg, size_t max_size ,int clientid){
+//	return::sendto(f_socket,msg,max_size,0,(struct sockaddr *) &f_user[clientid].f_addrclient,(socklen_t)sizeof(struct sockaddr));
+//}
 

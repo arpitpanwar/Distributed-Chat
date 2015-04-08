@@ -2,7 +2,10 @@
 #include <mutex>
 #include <condition_variable>
 #include <deque>
-
+#include <queue>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netdb.h>
 using namespace std;
 //TODO Decide how to work with type
 
@@ -17,19 +20,77 @@ typedef struct message{
 
 typedef struct leader{
 	string sIpAddress;
-	string sPort;
+	int sPort;
 	string sName;
 }LEADER;
 
 typedef struct sendmessage{
 	string message;
-	list<sockaddr_in>;
+	list<sockaddr_in> memberIP;
+}SENDMSG;
+
+
+
+template <typename T>
+class Queue
+{
+ public:
+
+  T pop()
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    while (queue_.empty())
+    {
+      cond_.wait(mlock);
+    }
+    auto item = queue_.front();
+    queue_.pop();
+    return item;
+  }
+
+  void pop(T& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    while (queue_.empty())
+    {
+      cond_.wait(mlock);
+    }
+    item = queue_.front();
+    queue_.pop();
+  }
+  bool empty()
+      {
+	  	  std::unique_lock<std::mutex> mlock(mutex_);
+          return queue_.empty();
+      }
+
+  void push(const T& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    queue_.push(item);
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+  void push(T&& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    queue_.push(std::move(item));
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+ private:
+  std::queue<T> queue_;
+  std::mutex mutex_;
+  std::condition_variable cond_;
 };
+
 
 class chat_node{
 
 public:
-	chat_node(string userName,int entry,string ipaddr , string port  );
+	chat_node(string userName,int entry,string ipaddr , int port  );
 
 	~chat_node();
 	bool bIsLeader;
@@ -38,42 +99,21 @@ public:
 	string sUserName;
 	LEADER lead;
 	map<string,string> mClientmap;
-	map<string,list<string> > mAckMap;
-	list<string> lPrintQueue;
-	list<string> lSendQueue;
-	list<MESSAGE> mHoldbackQueue;
+//	map<string,list<string> > mAckMap;
+//	list<string> lPrintQueue;
+//	list<string> lSendQueue;
+//	list<MESSAGE> mHoldbackQueue;
+	list<sockaddr_in> listOfUsers;
+	Queue<message> holdbackQueue;
+	Queue<message> chatQueue;
+	Queue<message> statusQueue;
+	Queue<message> consoleQueue;
+	Queue<sendmessage> sendQueue;
+	Queue<message> ackQueue;
+	Queue<string> printQueue;
 };
 
 
-template <typename T>
-class queue
-{
-private:
-    std::mutex              d_mutex;
-    std::condition_variable d_condition;
-    std::deque<T>           d_queue;
-public:
-    void push(T const& value) {
-        {
-            std::unique_lock<std::mutex> lock(this->d_mutex);
-            d_queue.push_front(value);
-        }
-        this->d_condition.notify_one();
-    }
-    T pop() {
-        std::unique_lock<std::mutex> lock(this->d_mutex);
-        this->d_condition.wait(lock, [this]{ return !this->d_queue.empty(); });
-        T rc(std::move(this->d_queue.back()));
-        this->d_queue.pop_back();
-        return rc;
-    }
-};
 
-queue<message> holdbackQueue;
-queue<message> chatQueue;
-queue<message> statusQueue;
-queue<sendmessage> sendQueue;
-queue<message> ackQueue;
-queue<string> printQueue;
 
 

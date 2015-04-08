@@ -3,10 +3,7 @@
 #include<netdb.h>
 #include<string>
 
-typedef struct user_details{
-	struct sockaddr_in f_addrclient;
 
-}USER_DETAILS;
 
 
 std::string findip();
@@ -36,7 +33,7 @@ private :
 	int f_port;
 	std::string f_addr;
 	struct sockaddr_in f_addrserver;
-	USER_DETAILS f_user[25];
+
 
 };
 
