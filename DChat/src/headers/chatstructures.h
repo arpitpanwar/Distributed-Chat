@@ -12,31 +12,28 @@ using namespace std;
 
 typedef struct message{
 
-	char sContent[2048];
+	char sContent[MESSAGE_SIZE];
 	int sType;
 	int lSequenceNums;
-//	char userName[32];
-//	char ipaddress[16];
-//	int portNum;
 
 }MESSAGE;
 
 typedef struct ListMessage{
 	int numUsers;
-	char leaderip[32];
+	char leaderip[USERNAME_BUFSIZE];
 	int  leaderPort;
-	char listUsers[2048];
+	char listUsers[MESSAGE_SIZE];
 }LISTMSG;
 
 typedef struct leader{
-	char sIpAddress[32];
+	char sIpAddress[IP_BUFSIZE];
 	int sPort;
-	char sName[32];
+	char sName[USERNAME_BUFSIZE];
 }LEADER;
 
 typedef struct ipPort{
-	char ipaddress[16];
-	char portnum[4];
+	char ipaddress[IP_BUFSIZE];
+	char portnum[PORT_BUFSIZE];
 }IPPORT;
 
 template <typename T>
@@ -104,8 +101,8 @@ public:
 	bool bIsLeader;
 //	long lSequencenums;
 	int entryNum;
-	char ipAddress[16];
-	char sUserName[32];
+	char ipAddress[IP_BUFSIZE];
+	char sUserName[USERNAME_BUFSIZE];
 	int portNum;
 	LEADER lead;
 	list<IPPORT> listofUsers;

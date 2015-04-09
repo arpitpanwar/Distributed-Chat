@@ -23,8 +23,7 @@
 #include "headers/defs.h"
 #include "headers/chatstructures.h"
 
-//#define DEBUG
-#define RETURN
+
 
 
 
@@ -93,8 +92,10 @@ void *recvMsg(void *id){
 
 
 		seqNum = msg.lSequenceNums;
+#ifdef PRINT
 		cout << "\nMessage being received :: " ;
 		cout << msg.sContent;
+#endif
 		std::cout.flush();
 		if((msg.sType == MESSAGE_TYPE_STATUS_JOIN)
 			|| (msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ)	){
@@ -125,7 +126,14 @@ void *sendMsg(void *id){
 					msgTosend.lSequenceNums = seqNum;
 				}
 				else{
-					msgTosend.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+					if(msgTosend.sType == MESSAGE_TYPE_STATUS_JOIN){
+						// This is to indicate the join message is coming from some other user and
+						///this message is forwarded to the sequencer.
+						msgTosend.sType = MESSAGE_TYPE_STATUS_JOIN;
+					}else{
+						msgTosend.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+					}
+
 				}
 
 
@@ -143,8 +151,10 @@ void *sendMsg(void *id){
 
 						continue;
 					}
+#ifdef PRINT
 					cout << "\nMessage being Sent :: ";
 					cout << msgTosend.sContent;
+#endif
 				}
 
 
@@ -158,9 +168,9 @@ int populatelistofUsers(char *users){
 	int countNum = 0;
 	for (list<IPPORT>::const_iterator iterator = curNode->listofUsers.begin(), end = curNode->listofUsers.end(); iterator != end; ++iterator) {
 		temp = *iterator;
-		memcpy(users,temp.ipaddress,16);
-		memcpy(users+16,temp.portnum,4);
-		users+=20;
+		memcpy(users,temp.ipaddress,IP_BUFSIZE);
+		memcpy(users+IP_BUFSIZE,temp.portnum,PORT_BUFSIZE);
+		users+=IP_BUFSIZE + PORT_BUFSIZE;
 		countNum ++;
 	}
 	return countNum;
@@ -169,13 +179,13 @@ int populatelistofUsers(char *users){
 
 void sendlist(char *msg){
 	int num,ret;
-	char ip[16];
-	char portNum[4];
+	char ip[IP_BUFSIZE];
+	char portNum[PORT_BUFSIZE];
 	int port;
 	LISTMSG msgTosend;
 	struct sockaddr_in client;
-	memcpy(ip,msg,16);
-	memcpy(portNum,msg+16,4);
+	memcpy(ip,msg,IP_BUFSIZE);
+	memcpy(portNum,msg+IP_BUFSIZE,PORT_BUFSIZE);
 //	cout << ip;
 //	cout << portNum;
 	client.sin_addr.s_addr = inet_addr(ip);
@@ -237,18 +247,18 @@ void *holdbackThread(void *id){
 
 void populatesocketClient(char userList[],int numUser){
 	int i;
-	char ipaddress[16];
-	char port[4];
+	char ipaddress[IP_BUFSIZE];
+	char port[PORT_BUFSIZE];
 	int  portNum;
 	char *ptr = userList;
 	for (int i = 0 ; i < numUser ; i++){
 
-		memcpy(ipaddress,ptr,16);
-		memcpy(port,ptr+16,4);
+		memcpy(ipaddress,ptr,IP_BUFSIZE);
+		memcpy(port,ptr+IP_BUFSIZE,PORT_BUFSIZE);
 		istringstream temp(port);
 		temp >> portNum;
 		addUserlist(ipaddress,portNum);
-		ptr +=20;
+		ptr +=IP_BUFSIZE + PORT_BUFSIZE;
 	}
 
 }
@@ -276,8 +286,8 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 }
 
 int main(int argc, char *argv[]) {
-	char ipaddress[16];
-	char username[32];
+	char ipaddress[IP_BUFSIZE];
+	char username[USERNAME_BUFSIZE];
 	int portNum;
 	int entry;
 	bool isSeq;
@@ -311,7 +321,7 @@ int main(int argc, char *argv[]) {
 		MESSAGE joinMsg;
 		LISTMSG userListMsg;
 		struct sockaddr_in seqClient;
-		char toSendip[16];
+		char toSendip[IP_BUFSIZE];
 		int sendPort;
 		int ret;
 		int addr_len = sizeof(struct sockaddr);
@@ -324,13 +334,9 @@ int main(int argc, char *argv[]) {
 
 //Entering details of the user to be sent so that it can join the group.
 		joinMsg.sType = MESSAGE_TYPE_STATUS_JOIN;
-		memcpy(joinMsg.sContent,ipaddress,16);
-		sprintf(joinMsg.sContent+16,"%d",portNum);
-		memcpy(joinMsg.sContent+20,username,32);
-//		joinMsg.portNum = portNum;
-//		strcpy(joinMsg.userName,username);
-//		strcpy(joinMsg.ipaddress,ipaddress);
-
+		memcpy(joinMsg.sContent,ipaddress,IP_BUFSIZE);
+		sprintf(joinMsg.sContent+IP_BUFSIZE,"%d",portNum);
+		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE,username,USERNAME_BUFSIZE);
 		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
 		if ( ret < 0){
 			perror("error while sending the message \n");
