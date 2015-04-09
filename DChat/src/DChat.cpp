@@ -26,19 +26,15 @@
 //#define DEBUG
 #define RETURN
 
-string& trim_right_in_place(string& str);
-void printAllUsers(map<string,string> clientMap ,bool isLeader);
+
+
 using namespace std;
 
 udp_Server* curServer;
 chat_node* curNode;
 
 
-string& trim_right_in_place(string& str) {
-    size_t i = str.size();
-    while(i > 0 && (isspace(str[i - 1])||(int)str[i-1]==0 )) { --i; };
-    return str.erase(i, str.size());
-}
+
 
 void *printConsole(void *id){
 
@@ -50,7 +46,7 @@ void *printConsole(void *id){
 #endif
 			//msg = curNode->printQueue.front();
 			msg =curNode->printQueue.pop();
-			cout <<"Print on Console : " +msg + "\n";
+			cout <<"\nPrint on Console :: " +msg + "\n";
 		}
 	}
 
@@ -61,38 +57,28 @@ void *recvMsg(void *id){
 	struct sockaddr_in client;
 	int bytes_recv;
 	int addr_len = sizeof(struct sockaddr);
-	string chatmsg;
 
 
 	while(true){
 		MESSAGE msg;
-		vector<string> tokens;
+
 		int seqNum = 0 ;
-		chatmsg.resize(2048);
+
 #ifdef DEBUG
 		cout << "Receive Message thread entered \n";
 #endif
-		bytes_recv = recvfrom(curServer->get_socket(),&chatmsg[0],2048,0,
+		bytes_recv = recvfrom(curServer->get_socket(),&msg,sizeof(MESSAGE),0,
 				(struct sockaddr *)&client,(socklen_t*)&addr_len);
 
 		if(bytes_recv < 0){
 			perror("Error while receiving message \n");
 			continue;
 		}
-		istringstream iss(chatmsg);
-		do{
-			string token;
-			iss >> token;
-			trim_right_in_place(token);
-			tokens.push_back(token);
-		}while(iss);
 
-		istringstream(tokens[1])>>seqNum;
 
-		msg.sContent = tokens[0];
-		msg.sType = MESSAGE_TYPE_CHAT;
-
-		cout << "Message being received : " + msg.sContent + "\n";
+		seqNum = msg.lSequenceNums;
+		cout << "\nMessage being received :: " ;
+		cout << msg.sContent;
 
 		if(seqNum!=0){
 			curNode->holdbackQueue.push(msg);
@@ -105,37 +91,32 @@ void *recvMsg(void *id){
 }
 void *sendMsg(void *id){
 	struct sockaddr_in client;
-		int ret;
+	int ret;
+	int seqNum = 0;
+	while(true){
 
-		int seqNum = 0;
-		while(true){
-			SENDMSG curSentmsg;
-
+			MESSAGE msgTosend;
 			if(!curNode->sendQueue.empty()){
 				seqNum ++;
-				curSentmsg = curNode->sendQueue.pop();
-				curSentmsg.message += "\t";
-				curSentmsg.message += to_string(seqNum);
-
-
-				curSentmsg.message.resize(2048);
+				msgTosend = curNode->sendQueue.pop();
+				msgTosend.lSequenceNums = seqNum;
 
 #ifdef DEBUG
 			cout << "Send Message: Send Queue not empty\n";
 			cout << curSentmsg.message;
 #endif
 
-				for (std::list<sockaddr_in>::const_iterator iterator = curSentmsg.memberIP.begin(), end = curSentmsg.memberIP.end(); iterator != end; ++iterator) {
+				for (std::list<sockaddr_in>::const_iterator iterator = curNode->listOfUsers.begin(), end = curNode->listOfUsers.end(); iterator != end; ++iterator) {
 					client = *iterator;
 
-					ret = sendto(curServer->get_socket(),curSentmsg.message.c_str(),2048,0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+					ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 					if ( ret < 0){
 						perror("error while sending the message \n");
 
 						continue;
 					}
-					cout << "Message being sent : " +curSentmsg.message+"\n";
-
+					cout << "\nMessage being Sent :: ";
+					cout << msgTosend.sContent;
 				}
 
 
@@ -149,16 +130,14 @@ void *processThread(void *id){
 	while(true){
 
 		MESSAGE curMsg;
-		SENDMSG curMsgtosend;
+
 		if(!curNode->consoleQueue.empty() ){
 #ifdef  DEBUG
 			cout << "Process Thread : Holdback queue not empty \n";
 #endif
-//			curMsg = curNode->holdbackQueue.front();
+
 		    curMsg = curNode->consoleQueue.pop();
-			curMsgtosend.message = curMsg.sContent;
-			curMsgtosend.memberIP.assign(curNode->listOfUsers.begin(),curNode->listOfUsers.end());
-			curNode->sendQueue.push(curMsgtosend);
+		    curNode->sendQueue.push(curMsg);
 		}
 	}
 
@@ -169,7 +148,7 @@ void *holdbackThread(void *id){
 		while(!curNode->holdbackQueue.empty()){
 			MESSAGE curMsg;
 			curMsg = curNode->holdbackQueue.pop();
-			printMsg = curMsg.sContent;
+			printMsg = string(curMsg.sContent);
 			curNode->printQueue.push(printMsg);
 		}
 	}
@@ -235,8 +214,11 @@ int main(int argc, char *argv[]) {
 
 	while(true){
 		MESSAGE curMsg;
+		string inpString;
+
+		getline(cin,inpString);
 		curMsg.sType = MESSAGE_TYPE_CHAT;
-		getline(cin,curMsg.sContent);
+		strcpy(curMsg.sContent,inpString.c_str());
 		curNode->consoleQueue.push(curMsg);
 
 

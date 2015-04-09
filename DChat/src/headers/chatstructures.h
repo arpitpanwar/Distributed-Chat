@@ -9,13 +9,12 @@
 using namespace std;
 //TODO Decide how to work with type
 
+
 typedef struct message{
 
-	string sContent;
-	string sType;
-	string sIpPort;
-	long lSequenceNums;
-
+	char sContent[2048];
+	int sType;
+	int lSequenceNums;
 }MESSAGE;
 
 typedef struct leader{
@@ -24,10 +23,6 @@ typedef struct leader{
 	string sName;
 }LEADER;
 
-typedef struct sendmessage{
-	string message;
-	list<sockaddr_in> memberIP;
-}SENDMSG;
 
 
 
@@ -108,7 +103,7 @@ public:
 	Queue<message> chatQueue;
 	Queue<message> statusQueue;
 	Queue<message> consoleQueue;
-	Queue<sendmessage> sendQueue;
+	Queue<message> sendQueue;
 	Queue<message> ackQueue;
 	Queue<string> printQueue;
 };
