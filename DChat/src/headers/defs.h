@@ -13,7 +13,7 @@
 #include<algorithm>
 #include<stdlib.h>
 #include<string>
-
+#define MESSAGE_TYPE_CHAT_NOSEQ 9
 #define MESSAGE_TYPE_CHAT 1
 
 #define MESSAGE_TYPE_ELECTION 2

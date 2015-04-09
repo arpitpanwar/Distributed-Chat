@@ -15,16 +15,29 @@ typedef struct message{
 	char sContent[2048];
 	int sType;
 	int lSequenceNums;
+//	char userName[32];
+//	char ipaddress[16];
+//	int portNum;
+
 }MESSAGE;
 
+typedef struct ListMessage{
+	int numUsers;
+	char leaderip[32];
+	int  leaderPort;
+	char listUsers[2048];
+}LISTMSG;
+
 typedef struct leader{
-	string sIpAddress;
+	char sIpAddress[32];
 	int sPort;
-	string sName;
+	char sName[32];
 }LEADER;
 
-
-
+typedef struct ipPort{
+	char ipaddress[16];
+	char portnum[4];
+}IPPORT;
 
 template <typename T>
 class Queue
@@ -85,20 +98,19 @@ class Queue
 class chat_node{
 
 public:
-	chat_node(string userName,int entry,string ipaddr , int port  );
+	chat_node(char userName[],int entry,char ipaddr[] , int port  );
 
 	~chat_node();
 	bool bIsLeader;
-	long lSequencenums;
+//	long lSequencenums;
 	int entryNum;
-	string sUserName;
+	char ipAddress[16];
+	char sUserName[32];
+	int portNum;
 	LEADER lead;
-	map<string,string> mClientmap;
-//	map<string,list<string> > mAckMap;
-//	list<string> lPrintQueue;
-//	list<string> lSendQueue;
-//	list<MESSAGE> mHoldbackQueue;
-	list<sockaddr_in> listOfUsers;
+	list<IPPORT> listofUsers;
+//	map<string,string> mClientmap;
+	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
 	Queue<message> chatQueue;
 	Queue<message> statusQueue;

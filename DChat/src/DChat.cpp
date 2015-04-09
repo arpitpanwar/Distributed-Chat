@@ -33,8 +33,24 @@ using namespace std;
 udp_Server* curServer;
 chat_node* curNode;
 
+void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 
+void addSocket(char ipaddress[], int portNum){
 
+	struct sockaddr_in client;
+	client.sin_addr.s_addr = inet_addr(ipaddress);
+	client.sin_family = AF_INET;
+	client.sin_port = htons(portNum);
+	curNode->listofSockets.push_back(client);
+}
+
+void addUserlist(char ipaddress[],int portNum){
+	IPPORT temp;
+	strcpy(temp.ipaddress,ipaddress);
+	sprintf(temp.portnum,"%d",portNum);
+
+	curNode->listofUsers.push_back(temp);
+}
 
 void *printConsole(void *id){
 
@@ -79,12 +95,15 @@ void *recvMsg(void *id){
 		seqNum = msg.lSequenceNums;
 		cout << "\nMessage being received :: " ;
 		cout << msg.sContent;
+		std::cout.flush();
+		if((msg.sType == MESSAGE_TYPE_STATUS_JOIN)
+			|| (msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ)	){
+			curNode->consoleQueue.push(msg);
 
-		if(seqNum!=0){
-			curNode->holdbackQueue.push(msg);
 		}
 		else{
-			curNode->consoleQueue.push(msg);
+
+			curNode->holdbackQueue.push(msg);
 		}
 
 	}
@@ -97,16 +116,25 @@ void *sendMsg(void *id){
 
 			MESSAGE msgTosend;
 			if(!curNode->sendQueue.empty()){
-				seqNum ++;
+
 				msgTosend = curNode->sendQueue.pop();
-				msgTosend.lSequenceNums = seqNum;
+				if(curNode->bIsLeader){
+
+					seqNum++;
+					msgTosend.sType = MESSAGE_TYPE_CHAT;
+					msgTosend.lSequenceNums = seqNum;
+				}
+				else{
+					msgTosend.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+				}
+
 
 #ifdef DEBUG
 			cout << "Send Message: Send Queue not empty\n";
 			cout << curSentmsg.message;
 #endif
 
-				for (std::list<sockaddr_in>::const_iterator iterator = curNode->listOfUsers.begin(), end = curNode->listOfUsers.end(); iterator != end; ++iterator) {
+				for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
 					client = *iterator;
 
 					ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
@@ -125,8 +153,51 @@ void *sendMsg(void *id){
 		}
 
 }
+int populatelistofUsers(char *users){
+	IPPORT temp;
+	int countNum = 0;
+	for (list<IPPORT>::const_iterator iterator = curNode->listofUsers.begin(), end = curNode->listofUsers.end(); iterator != end; ++iterator) {
+		temp = *iterator;
+		memcpy(users,temp.ipaddress,16);
+		memcpy(users+16,temp.portnum,4);
+		users+=20;
+		countNum ++;
+	}
+	return countNum;
+}
 
+
+void sendlist(char *msg){
+	int num,ret;
+	char ip[16];
+	char portNum[4];
+	int port;
+	LISTMSG msgTosend;
+	struct sockaddr_in client;
+	memcpy(ip,msg,16);
+	memcpy(portNum,msg+16,4);
+//	cout << ip;
+//	cout << portNum;
+	client.sin_addr.s_addr = inet_addr(ip);
+	client.sin_family = AF_INET;
+	sscanf(portNum, "%d", &port);
+	client.sin_port = htons(port);
+	num = populatelistofUsers(msgTosend.listUsers);
+
+	msgTosend.leaderPort = curNode->lead.sPort;
+	strcpy(msgTosend.leaderip,curNode->lead.sIpAddress);
+	msgTosend.numUsers = num;
+	ret = sendto(curServer->get_socket(),&msgTosend,sizeof(LISTMSG),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+	if ( ret < 0){
+		perror("error while sending the List Message \n");
+
+	}
+	addSocket(ip,port);
+	addUserlist(ip,port);
+
+}
 void *processThread(void *id){
+
 	while(true){
 
 		MESSAGE curMsg;
@@ -137,7 +208,13 @@ void *processThread(void *id){
 #endif
 
 		    curMsg = curNode->consoleQueue.pop();
+
+		    if(curNode->bIsLeader && curMsg.sType == MESSAGE_TYPE_STATUS_JOIN){
+		    	sendlist(curMsg.sContent);
+
+		    }else{
 		    curNode->sendQueue.push(curMsg);
+		    }
 		}
 	}
 
@@ -148,19 +225,32 @@ void *holdbackThread(void *id){
 		while(!curNode->holdbackQueue.empty()){
 			MESSAGE curMsg;
 			curMsg = curNode->holdbackQueue.pop();
+
+
+
 			printMsg = string(curMsg.sContent);
 			curNode->printQueue.push(printMsg);
 		}
 	}
 
 }
-void addUser(string ipaddress, int portNum){
 
-	struct sockaddr_in client;
-	client.sin_addr.s_addr = inet_addr(ipaddress.c_str());
-	client.sin_family = AF_INET;
-	client.sin_port = htons(portNum);
-	curNode->listOfUsers.push_back(client);
+void populatesocketClient(char userList[],int numUser){
+	int i;
+	char ipaddress[16];
+	char port[4];
+	int  portNum;
+	char *ptr = userList;
+	for (int i = 0 ; i < numUser ; i++){
+
+		memcpy(ipaddress,ptr,16);
+		memcpy(port,ptr+16,4);
+		istringstream temp(port);
+		temp >> portNum;
+		addUserlist(ipaddress,portNum);
+		ptr +=20;
+	}
+
 }
 int create_threads(pthread_t threads[NUM_THREADS]){
 	int ret = 0 ;
@@ -186,27 +276,78 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 }
 
 int main(int argc, char *argv[]) {
-	string ipaddress = findip();
-	istringstream port(argv[2]);
+	char ipaddress[16];
+	char username[32];
 	int portNum;
-	int ret;
+	int entry;
+	bool isSeq;
 	pthread_t threads[NUM_THREADS];
 
-	string username;
-	string inpConsole;
-	bool isSeq;
-
-	if(argc < 3){
+	istringstream port(argv[2]);
+	if(argc == 3 ){
 		isSeq = true;
+		entry = 1;
 		cout << "New Chat Started \n";
 	}
-	username = argv[1];
+	if(argc == 5){
+		isSeq = false;
+		entry = 0;
+		cout << "Joining a existing chat \n";
+	}
+
 	port >> portNum;
+	strcpy(username,argv[1]);
+	strcpy(ipaddress,findip().c_str());
+	curServer = new udp_Server(ipaddress,portNum);
+	curNode = new chat_node(username,entry,ipaddress,portNum);
+	if(isSeq){
+		addUserlist(ipaddress,portNum);
+		addSocket(ipaddress,portNum);
+		populateLeader(&curNode->lead,ipaddress,portNum,username);
+		curNode->bIsLeader =true;
+	}
+	else{
+		curNode->bIsLeader = false;
+		MESSAGE joinMsg;
+		LISTMSG userListMsg;
+		struct sockaddr_in seqClient;
+		char toSendip[16];
+		int sendPort;
+		int ret;
+		int addr_len = sizeof(struct sockaddr);
+		istringstream port(argv[4]);
+		port >> sendPort;
+		strcpy(toSendip,argv[3]);
+		seqClient.sin_addr.s_addr = inet_addr(toSendip);
+		seqClient.sin_family = AF_INET;
+		seqClient.sin_port = htons(sendPort);
 
-	curServer = new udp_Server(ipaddress.c_str(),portNum);
+//Entering details of the user to be sent so that it can join the group.
+		joinMsg.sType = MESSAGE_TYPE_STATUS_JOIN;
+		memcpy(joinMsg.sContent,ipaddress,16);
+		sprintf(joinMsg.sContent+16,"%d",portNum);
+		memcpy(joinMsg.sContent+20,username,32);
+//		joinMsg.portNum = portNum;
+//		strcpy(joinMsg.userName,username);
+//		strcpy(joinMsg.ipaddress,ipaddress);
 
-	curNode = new chat_node(username,1,ipaddress,portNum);
-	addUser(ipaddress,portNum);
+		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
+		if ( ret < 0){
+			perror("error while sending the message \n");
+			//continue;
+		}
+		ret = recvfrom(curServer->get_socket(),&userListMsg,sizeof(MESSAGE),0,
+						(struct sockaddr *)&seqClient,(socklen_t*)&addr_len);
+		if ( ret < 0){
+				perror("error while sending the message \n");
+				//continue;
+		}
+		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
+		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
+		cout << userListMsg.leaderPort;
+	}
+
+
 	if(create_threads(threads)){
 		perror("Error Creating threads \n");
 		exit(1);
@@ -215,13 +356,10 @@ int main(int argc, char *argv[]) {
 	while(true){
 		MESSAGE curMsg;
 		string inpString;
-
 		getline(cin,inpString);
 		curMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(curMsg.sContent,inpString.c_str());
 		curNode->consoleQueue.push(curMsg);
-
-
 	}
 
 	return 0;

@@ -2,18 +2,7 @@
 #include<sys/socket.h>
 #include<netdb.h>
 #include<string>
-
-
-
-
 std::string findip();
-
-//class chatServer_runtime_error : public std::runtime_error
-//{
-//public:
-//	chatServer_runtime_error(const char *w) : std::runtime_error(w) {}
-//};
-
 class udp_Server{
 public :
 	//Constructor of the UDP server being created
