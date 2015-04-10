@@ -115,11 +115,11 @@ public:
 //	map<string,string> mClientmap;
 	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
-	Queue<message> chatQueue;
-	Queue<message> statusQueue;
+//	Queue<message> chatQueue;
+//	Queue<message> statusQueue;
 	Queue<message> consoleQueue;
 	Queue<message> sendQueue;
-	Queue<message> ackQueue;
+//	Queue<message> ackQueue;
 	Queue<string> printQueue;
 };
 
