@@ -90,20 +90,14 @@ void *recvMsg(void *id){
 			//continue;
 		}
 		client.sin_port = htons(ntohs(client.sin_port)+1);
-
-
-		ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
-				(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-		if ( ret < 0){
-			perror("error while sending the message \n");
-			continue;
-		}
-
-#ifdef PRINT
-		cout << "\nMessage being received :: " ;
-		cout << msg.sContent;
-		std::cout.flush();
-#endif
+		if(msg.sType != MESSAGE_TYPE_STATUS_JOIN){
+				ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
+						(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+				if ( ret < 0){
+					perror("error while sending the message \n");
+					continue;
+				}
+			}
 
 		if((msg.sType == MESSAGE_TYPE_STATUS_JOIN)
 				|| (msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ)	){
@@ -115,6 +109,15 @@ void *recvMsg(void *id){
 
 			curNode->holdbackQueue.push(msg);
 		}
+
+#ifdef PRINT
+		cout << "\nMessage being received :: " ;
+		cout << msg.sContent;
+		std::cout.flush();
+#endif
+
+
+
 
 	}
 }
@@ -181,6 +184,8 @@ void *sendMsg(void *id){
 
 								ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 								if ( ret < 0){
+
+									//Declare that particular client as dead
 									perror("error while sending the message \n");
 									continue;
 								}
@@ -229,11 +234,12 @@ void sendlist(char *msg){
 	struct sockaddr_in client;
 	memcpy(ip,msg,IP_BUFSIZE);
 	memcpy(portNum,msg+IP_BUFSIZE,PORT_BUFSIZE);
-
+	addUserlist(ip,port);
 	client.sin_addr.s_addr = inet_addr(ip);
 	client.sin_family = AF_INET;
 	sscanf(portNum, "%d", &port);
 	client.sin_port = htons(port);
+
 	num = populatelistofUsers(msgTosend.listUsers);
 
 	msgTosend.leaderPort = curNode->lead.sPort;
@@ -245,7 +251,7 @@ void sendlist(char *msg){
 
 	}
 	addSocket(ip,port);
-	addUserlist(ip,port);
+
 
 }
 void *processThread(void *id){
@@ -271,57 +277,57 @@ void *processThread(void *id){
 	}
 
 }
-void *heartbeatThread(void *id){
-	struct sockaddr_in client,recvClient;
-	int ret;
-	int addr_len = sizeof(struct sockaddr);
-	struct timeval tv;
-	while(true){
-		char sendBeat[16],recvBeat[16];
-		sleep(10000); //Sleep for 10 seconds
-		if(curNode->bIsLeader){
-			for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
-				client = *iterator;
-				strcpy(sendBeat,"BEAT");
-				ret = sendto(ackServer->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-				if ( ret < 0){
-					perror("error while sending the heartbeat signal \n");
-				}
-				tv.tv_sec = 5;
-				if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-					perror("Error while setting the timer for the heartbeat signal\n");
-				}
-				//TODO: NEED to check the logic for detecting dead clients and continue the heartbeat signal
-				if((ackServer->get_message(recvClient,recvBeat,sizeof(recvBeat)) < 0)){
-					perror("Timed out in receving the heartbeat \n ");
-					cout << "Declare the particular client dead\n";
-				}
-				if(strcmp(sendBeat,recvBeat)!=0){
-					cout << "heartbeat received is not right Need to conduct elections \n";
-				}
-			}
-		}
-		else{
-			tv.tv_sec = 5;
-			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-					perror("Error while setting the timer for the heartbeat signal\n");
-			}
-			ret = recvfrom(ackServer->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
-			if(ret < 0){
-				perror("Timed out in receiving the heartbeat from the sequencer");
-				cout << "conduct elections ";
-			}
-//TODO: Need to check the string that is being received ;
-			strcpy(sendBeat,"BEAT");
-			ret = sendto(ackServer->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-			if ( ret < 0){
-				perror("error while sending the heartbeat signal \n");
-			}
-		}
-
-	}
-
-}
+//void *heartbeatThread(void *id){
+//	struct sockaddr_in client,recvClient;
+//	int ret;
+//	int addr_len = sizeof(struct sockaddr);
+//	struct timeval tv;
+//	while(true){
+//		char sendBeat[16],recvBeat[16];
+//		sleep(10000); //Sleep for 10 seconds
+//		if(curNode->bIsLeader){
+//			for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
+//				client = *iterator;
+//				strcpy(sendBeat,"BEAT");
+//				ret = sendto(ackServer->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+//				if ( ret < 0){
+//					perror("error while sending the heartbeat signal \n");
+//				}
+//				tv.tv_sec = 5;
+//				if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+//					perror("Error while setting the timer for the heartbeat signal\n");
+//				}
+//				//TODO: NEED to check the logic for detecting dead clients and continue the heartbeat signal
+//				if((ackServer->get_message(recvClient,recvBeat,sizeof(recvBeat)) < 0)){
+//					perror("Timed out in receving the heartbeat \n ");
+//					cout << "Declare the particular client dead\n";
+//				}
+//				if(strcmp(sendBeat,recvBeat)!=0){
+//					cout << "heartbeat received is not right Need to conduct elections \n";
+//				}
+//			}
+//		}
+//		else{
+//			tv.tv_sec = 5;
+//			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+//					perror("Error while setting the timer for the heartbeat signal\n");
+//			}
+//			ret = recvfrom(ackServer->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
+//			if(ret < 0){
+//				perror("Timed out in receiving the heartbeat from the sequencer");
+//				cout << "conduct elections ";
+//			}
+////TODO: Need to check the string that is being received ;
+//			strcpy(sendBeat,"BEAT");
+//			ret = sendto(ackServer->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+//			if ( ret < 0){
+//				perror("error while sending the heartbeat signal \n");
+//			}
+//		}
+//
+//	}
+//
+//}
 void *holdbackThread(void *id){
 	string printMsg;
 	while (true){
@@ -375,9 +381,9 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 	if(pthread_create(&threads[4],NULL,holdbackThread,NULL)){
 			ret++;
 	}
-	if(pthread_create(&threads[5],NULL,heartbeatThread,NULL)){
-		ret++;
-	}
+//	if(pthread_create(&threads[5],NULL,heartbeatThread,NULL)){
+//		ret++;
+//	}
 
 	return ret;
 
@@ -444,7 +450,7 @@ int main(int argc, char *argv[]) {
 			perror("error while sending the message \n");
 			//continue;
 		}
-		ret = recvfrom(curServer->get_socket(),&userListMsg,sizeof(MESSAGE),0,
+		ret = recvfrom(curServer->get_socket(),&userListMsg,sizeof(LISTMSG),0,
 				(struct sockaddr *)&seqClient,(socklen_t*)&addr_len);
 		if ( ret < 0){
 			perror("error while sending the message \n");
@@ -452,7 +458,7 @@ int main(int argc, char *argv[]) {
 		}
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
-		cout << userListMsg.leaderPort;
+
 	}
 
 
