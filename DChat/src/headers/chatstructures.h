@@ -9,27 +9,38 @@
 using namespace std;
 //TODO Decide how to work with type
 
+
 typedef struct message{
 
-	string sContent;
-	string sType;
-	string sIpPort;
-	long lSequenceNums;
-
+	char sContent[MESSAGE_SIZE];
+	int sType;
+	int lSequenceNums;
+	int timestamp;
 }MESSAGE;
 
+typedef struct heartbeat{
+	char userName[USERNAME_BUFSIZE];
+	int portNum;
+	char ipAddress[IP_BUFSIZE];
+}HEARTBEAT;
+
+typedef struct ListMessage{
+	int numUsers;
+	char leaderip[USERNAME_BUFSIZE];
+	int  leaderPort;
+	char listUsers[MESSAGE_SIZE];
+}LISTMSG;
+
 typedef struct leader{
-	string sIpAddress;
+	char sIpAddress[IP_BUFSIZE];
 	int sPort;
-	string sName;
+	char sName[USERNAME_BUFSIZE];
 }LEADER;
 
-typedef struct sendmessage{
-	string message;
-	list<sockaddr_in> memberIP;
-}SENDMSG;
-
-
+typedef struct ipPort{
+	char ipaddress[IP_BUFSIZE];
+	char portnum[PORT_BUFSIZE];
+}IPPORT;
 
 template <typename T>
 class Queue
@@ -90,25 +101,24 @@ class Queue
 class chat_node{
 
 public:
-	chat_node(string userName,int entry,string ipaddr , int port  );
+	chat_node(char userName[],int entry,char ipaddr[] , int port  );
 
 	~chat_node();
 	bool bIsLeader;
-	long lSequencenums;
+//	long lSequencenums;
 	int entryNum;
-	string sUserName;
+	char ipAddress[IP_BUFSIZE];
+	char sUserName[USERNAME_BUFSIZE];
+	int portNum;
 	LEADER lead;
-	map<string,string> mClientmap;
-//	map<string,list<string> > mAckMap;
-//	list<string> lPrintQueue;
-//	list<string> lSendQueue;
-//	list<MESSAGE> mHoldbackQueue;
-	list<sockaddr_in> listOfUsers;
+	list<IPPORT> listofUsers;
+//	map<string,string> mClientmap;
+	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
 	Queue<message> chatQueue;
 	Queue<message> statusQueue;
 	Queue<message> consoleQueue;
-	Queue<sendmessage> sendQueue;
+	Queue<message> sendQueue;
 	Queue<message> ackQueue;
 	Queue<string> printQueue;
 };

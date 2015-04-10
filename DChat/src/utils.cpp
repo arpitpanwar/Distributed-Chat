@@ -2,14 +2,21 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <netinet/in.h>
-#include <string>
+#include <string.h>
 #include <arpa/inet.h>
 #include<iostream>
-
+#include "headers/udpserver.h"
 #include "headers/defs.h"
+#include "headers/chatstructures.h"
+#include <stdlib.h>
+
 
 using namespace std;
-
+void populateLeader(LEADER *lead,char ip[],int portNum,char username[]){
+	strcpy(lead->sIpAddress,ip);
+	lead->sPort = portNum;
+	strcpy(lead->sName,username);
+}
 string findip(){
     struct ifaddrs * ifAddrStruct=NULL;
     struct ifaddrs * ifa=NULL;

@@ -1,21 +1,15 @@
 #include "headers/chatstructures.h"
+#include<stdlib.h>
+#include<string.h>
+chat_node::chat_node(char userName[],int entry,char ipaddr[], int port ){
 
-chat_node::chat_node(string userName,int entry,string ipaddr, int port ){
-	sUserName = userName;
-
-	entryNum = entry;
-	if(entryNum){
-		bIsLeader = 1;
-		lead.sIpAddress = ipaddr;
-		lead.sName = userName;
-		lead.sPort = port;
-		lSequencenums = 0;
-	}
-	else
-		bIsLeader = 0;
+	strcpy(sUserName,userName);
+	strcpy(ipAddress,ipaddr);
+	portNum = port;
+	bIsLeader = true;
+	entryNum  = entry;
 
 }
-
 
 chat_node::~chat_node(){
 
