@@ -13,8 +13,8 @@ public :
 	int get_socket() const;
 	int get_portNum() const;
 	std::string get_addr() const;
-	int  get_message(char *msg, size_t max_size ,int portnum);
-	int  send_message(char *msg , size_t max_size , int portnum);
+	int  get_message(struct sockaddr_in client,char *msg, size_t max_size );
+	int  send_message(struct sockaddr_in client,char *msg , size_t max_size );
 
 
 private :

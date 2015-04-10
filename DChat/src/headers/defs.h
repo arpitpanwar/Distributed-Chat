@@ -29,7 +29,7 @@
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
-#define NUM_THREADS 5
+#define NUM_THREADS 10
 #define IP_BUFSIZE 16
 #define PORT_BUFSIZE 4
 #define USERNAME_BUFSIZE 32

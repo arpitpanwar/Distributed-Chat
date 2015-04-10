@@ -15,8 +15,14 @@ typedef struct message{
 	char sContent[MESSAGE_SIZE];
 	int sType;
 	int lSequenceNums;
-
+	int timestamp;
 }MESSAGE;
+
+typedef struct heartbeat{
+	char userName[USERNAME_BUFSIZE];
+	int portNum;
+	char ipAddress[IP_BUFSIZE];
+}HEARTBEAT;
 
 typedef struct ListMessage{
 	int numUsers;
