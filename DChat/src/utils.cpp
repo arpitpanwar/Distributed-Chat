@@ -9,14 +9,18 @@
 #include "headers/defs.h"
 #include "headers/chatstructures.h"
 #include <stdlib.h>
+#include <unistd.h>
 
 
 using namespace std;
+
+
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]){
 	strcpy(lead->sIpAddress,ip);
 	lead->sPort = portNum;
 	strcpy(lead->sName,username);
 }
+
 string findip(){
     struct ifaddrs * ifAddrStruct=NULL;
     struct ifaddrs * ifa=NULL;
@@ -55,3 +59,46 @@ void printAllUsers(map<string,string> clientMap ,bool isLeader){
 			cout << "\n";
 		}
 }
+
+
+bool isPortAvailable(int port){
+		bool available = false;
+		struct sockaddr_in client;
+	    int sock;
+
+	    client.sin_family = AF_INET;
+	    client.sin_port = htons(port);
+	    client.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+	    sock = (int) socket(AF_INET, SOCK_STREAM, 0);
+
+	    int result = connect(sock, (struct sockaddr *) &client,sizeof(client));
+
+	    if(result==0){
+	    	available = false;
+	    }else{
+	    	perror("Error creating socket");
+	    	available = true;
+	    }
+
+	    close(sock);
+
+	    return available;
+}
+
+int getOpenPort(){
+
+		int port = BASE_PORT;
+
+		if(isPortAvailable(port) & isPortAvailable(port+1) & isPortAvailable(port+2)){
+
+			return port;
+		}else{
+			port = port+10;
+			while(!isPortAvailable(port) & !isPortAvailable(port+1) & !isPortAvailable(port+2)){
+				port = port+10;
+			}
+		}
+		return port;
+}
+

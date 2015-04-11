@@ -37,10 +37,11 @@ typedef struct leader{
 	char sName[USERNAME_BUFSIZE];
 }LEADER;
 
-typedef struct ipPort{
+typedef struct UserInfo{
 	char ipaddress[IP_BUFSIZE];
 	char portnum[PORT_BUFSIZE];
-}IPPORT;
+	char username[USERNAME_BUFSIZE];
+}USERINFO;
 
 template <typename T>
 class Queue
@@ -97,6 +98,7 @@ class Queue
   std::condition_variable cond_;
 };
 
+int getOpenPort();
 
 class chat_node{
 
@@ -111,7 +113,7 @@ public:
 	char sUserName[USERNAME_BUFSIZE];
 	int portNum;
 	LEADER lead;
-	list<IPPORT> listofUsers;
+	list<USERINFO> listofUsers;
 //	map<string,string> mClientmap;
 	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;

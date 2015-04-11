@@ -23,10 +23,6 @@
 #include "headers/defs.h"
 #include "headers/chatstructures.h"
 
-
-
-
-
 using namespace std;
 
 udp_Server* curServer;
@@ -45,10 +41,11 @@ void addSocket(char ipaddress[], int portNum){
 	curNode->listofSockets.push_back(client);
 }
 
-void addUserlist(char ipaddress[],int portNum){
-	IPPORT temp;
+void addUserlist(char ipaddress[],int portNum, char username[]){
+	USERINFO temp;
 	strcpy(temp.ipaddress,ipaddress);
 	sprintf(temp.portnum,"%d",portNum);
+	strcpy(temp.username,username);
 
 	curNode->listofUsers.push_back(temp);
 }
@@ -141,6 +138,12 @@ void *sendMsg(void *id){
 
 					seqNum++;
 					msgTosend.sType = MESSAGE_TYPE_CHAT;
+					string content = msgTosend.sContent;
+
+					list<USERINFO> users = curNode->listofUsers;
+
+
+
 					msgTosend.lSequenceNums = seqNum;
 				}
 				else{
@@ -212,9 +215,9 @@ void *sendMsg(void *id){
 
 }
 int populatelistofUsers(char *users){
-	IPPORT temp;
+	USERINFO temp;
 	int countNum = 0;
-	for (list<IPPORT>::const_iterator iterator = curNode->listofUsers.begin(), end = curNode->listofUsers.end(); iterator != end; ++iterator) {
+	for (list<USERINFO>::const_iterator iterator = curNode->listofUsers.begin(), end = curNode->listofUsers.end(); iterator != end; ++iterator) {
 		temp = *iterator;
 		memcpy(users,temp.ipaddress,IP_BUFSIZE);
 		memcpy(users+IP_BUFSIZE,temp.portnum,PORT_BUFSIZE);
@@ -229,12 +232,16 @@ void sendlist(char *msg){
 	int num,ret;
 	char ip[IP_BUFSIZE];
 	char portNum[PORT_BUFSIZE];
+	char username[USERNAME_BUFSIZE];
 	int port;
 	LISTMSG msgTosend;
 	struct sockaddr_in client;
+
 	memcpy(ip,msg,IP_BUFSIZE);
 	memcpy(portNum,msg+IP_BUFSIZE,PORT_BUFSIZE);
-	addUserlist(ip,port);
+	memcpy(username,msg+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
+
+	addUserlist(ip,port,username);
 	client.sin_addr.s_addr = inet_addr(ip);
 	client.sin_family = AF_INET;
 	sscanf(portNum, "%d", &port);
@@ -245,6 +252,7 @@ void sendlist(char *msg){
 	msgTosend.leaderPort = curNode->lead.sPort;
 	strcpy(msgTosend.leaderip,curNode->lead.sIpAddress);
 	msgTosend.numUsers = num;
+
 	ret = sendto(curServer->get_socket(),&msgTosend,sizeof(LISTMSG),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 	if ( ret < 0){
 		perror("error while sending the List Message \n");
@@ -349,16 +357,18 @@ void populatesocketClient(char userList[],int numUser){
 	int i;
 	char ipaddress[IP_BUFSIZE];
 	char port[PORT_BUFSIZE];
+	char username[USERNAME_BUFSIZE];
 	int  portNum;
 	char *ptr = userList;
 	for (int i = 0 ; i < numUser ; i++){
 
 		memcpy(ipaddress,ptr,IP_BUFSIZE);
 		memcpy(port,ptr+IP_BUFSIZE,PORT_BUFSIZE);
+		memcpy(username,ptr+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
 		istringstream temp(port);
 		temp >> portNum;
-		addUserlist(ipaddress,portNum);
-		ptr +=IP_BUFSIZE + PORT_BUFSIZE;
+		addUserlist(ipaddress,portNum,username);
+		ptr +=IP_BUFSIZE + PORT_BUFSIZE+USERNAME_BUFSIZE;
 	}
 
 }
@@ -390,6 +400,13 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 }
 
 int main(int argc, char *argv[]) {
+
+	if((argc==1) | (argv == NULL)){
+		cout<<"Invalid number of arguments"<<endl;
+		cout<<USAGE<<endl;
+		return 1;
+	}
+
 	char ipaddress[IP_BUFSIZE];
 	char username[USERNAME_BUFSIZE];
 	int portNum;
@@ -397,27 +414,28 @@ int main(int argc, char *argv[]) {
 	bool isSeq;
 	pthread_t threads[NUM_THREADS];
 
-	istringstream port(argv[2]);
-	if(argc == 3 ){
+	if(argc == 2 ){
 		isSeq = true;
 		entry = 1;
 		cout << "New Chat Started \n";
 	}
-	if(argc == 5){
+	if(argc == 4){
 		isSeq = false;
 		entry = 0;
 		cout << "Joining a existing chat \n";
 	}
 
-	port >> portNum;
+	portNum = getOpenPort();
+	cout<<"Port is:"<<portNum<<endl;
 	strcpy(username,argv[1]);
 	strcpy(ipaddress,findip().c_str());
 	curServer = new udp_Server(ipaddress,portNum);
 	ackServer = new udp_Server(ipaddress,portNum+1);
 	heartBeatserver = new udp_Server(ipaddress,portNum+2);
 	curNode = new chat_node(username,entry,ipaddress,portNum);
+
 	if(isSeq){
-		addUserlist(ipaddress,portNum);
+		addUserlist(ipaddress,portNum,username);
 		addSocket(ipaddress,portNum);
 		populateLeader(&curNode->lead,ipaddress,portNum,username);
 		curNode->bIsLeader =true;
