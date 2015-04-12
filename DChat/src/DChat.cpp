@@ -14,6 +14,7 @@
 #include<netdb.h>
 #include<stdio.h>
 #include <string.h>
+#include<string>
 #include<sstream>
 #include<pthread.h>
 #include<vector>
@@ -32,6 +33,21 @@ chat_node* curNode;
 
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 
+
+
+void addUser(char ipaddress[],int portNum,char username[]){
+
+	string ipPort = ipaddress+string(":")+to_string(portNum);
+
+	string user = username;
+
+	if(curNode->mClientmap.find(ipPort) == curNode->mClientmap.end()){
+
+	curNode->mClientmap[ipPort] = user;
+	}
+
+}
+
 void addSocket(char ipaddress[], int portNum){
 
 	struct sockaddr_in client;
@@ -43,11 +59,15 @@ void addSocket(char ipaddress[], int portNum){
 
 void addUserlist(char ipaddress[],int portNum, char username[]){
 	USERINFO temp;
+	addUser(ipaddress,portNum,username);
+
 	strcpy(temp.ipaddress,ipaddress);
 	sprintf(temp.portnum,"%d",portNum);
 	strcpy(temp.username,username);
 
 	curNode->listofUsers.push_back(temp);
+
+
 }
 
 void *printConsole(void *id){
@@ -60,7 +80,7 @@ void *printConsole(void *id){
 #endif
 			//msg = curNode->printQueue.front();
 			msg =curNode->printQueue.pop();
-			cout <<"\nPrint on Console :: " +msg + "\n";
+			cout <<msg<<endl;
 		}
 	}
 
@@ -82,11 +102,16 @@ void *recvMsg(void *id){
 
 		ret = recvfrom(curServer->get_socket(),&msg,sizeof(MESSAGE),0,
 				(struct sockaddr *)&client,(socklen_t*)&addr_len);
-		if ( ret < 0){
+		if (ret < 0){
 			perror("error while sending the message \n");
 			//continue;
 		}
+
+		string ip = string(inet_ntoa(client.sin_addr));
+		int port = ntohs(client.sin_port);
+
 		client.sin_port = htons(ntohs(client.sin_port)+1);
+
 		if(msg.sType != MESSAGE_TYPE_STATUS_JOIN){
 				ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
 						(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
@@ -96,8 +121,19 @@ void *recvMsg(void *id){
 				}
 			}
 
+
+
 		if((msg.sType == MESSAGE_TYPE_STATUS_JOIN)
 				|| (msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ)	){
+
+			if(msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ){
+				string content = msg.sContent;
+				string key = ip+string(":")+to_string(port);
+				if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
+					content = curNode->mClientmap[key]+string(":: ")+content;
+					strcpy(&msg.sContent[0],content.c_str());
+				}
+			}
 
 			curNode->consoleQueue.push(msg);
 
@@ -207,13 +243,11 @@ void *sendMsg(void *id){
 					cout << msgTosend.sContent;
 #endif
 				}
-
-
-
 			}
 		}
 
 }
+
 int populatelistofUsers(char *users){
 	USERINFO temp;
 	int countNum = 0;
@@ -240,6 +274,7 @@ void sendlist(char *msg){
 	memcpy(ip,msg,IP_BUFSIZE);
 	memcpy(portNum,msg+IP_BUFSIZE,PORT_BUFSIZE);
 	memcpy(username,msg+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
+	sscanf(portNum, "%d", &port);
 
 	addUserlist(ip,port,username);
 	client.sin_addr.s_addr = inet_addr(ip);
@@ -268,7 +303,6 @@ void *processThread(void *id){
 
 		MESSAGE curMsg;
 
-		if(!curNode->consoleQueue.empty() ){
 #ifdef  DEBUG
 			cout << "Process Thread : Holdback queue not empty \n";
 #endif
@@ -276,12 +310,13 @@ void *processThread(void *id){
 		    curMsg = curNode->consoleQueue.pop();
 
 		    if(curNode->bIsLeader && curMsg.sType == MESSAGE_TYPE_STATUS_JOIN){
+
 		    	sendlist(curMsg.sContent);
 
 		    }else{
-		    curNode->sendQueue.push(curMsg);
+		    	curNode->sendQueue.push(curMsg);
 		    }
-		}
+
 	}
 
 }
@@ -419,7 +454,7 @@ int main(int argc, char *argv[]) {
 		entry = 1;
 		cout << "New Chat Started \n";
 	}
-	if(argc == 4){
+	if(argc == 3){
 		isSeq = false;
 		entry = 0;
 		cout << "Joining a existing chat \n";
@@ -449,9 +484,19 @@ int main(int argc, char *argv[]) {
 		int sendPort;
 		int ret;
 		int addr_len = sizeof(struct sockaddr);
-		istringstream port(argv[4]);
-		port >> sendPort;
-		strcpy(toSendip,argv[3]);
+		string ipPort = argv[2];
+		vector<string> tokens = split(ipPort,':');
+
+		if(tokens.size()!=2){
+			cout<<"Invalid arguments"<<endl;
+			cout<<USAGE<<endl;
+			return 1;
+		}
+
+		//port >> sendPort;
+		strcpy(toSendip,tokens[0].c_str());
+		sendPort = stoi(tokens[1]);
+
 		seqClient.sin_addr.s_addr = inet_addr(toSendip);
 		seqClient.sin_family = AF_INET;
 		seqClient.sin_port = htons(sendPort);
@@ -491,6 +536,15 @@ int main(int argc, char *argv[]) {
 		getline(cin,inpString);
 		curMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(curMsg.sContent,inpString.c_str());
+
+		string content = curMsg.sContent;
+		string key = curNode->lead.sIpAddress+string(":")+to_string(curNode->lead.sPort);
+
+		if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
+			content = curNode->mClientmap[key]+string(":: ")+content;
+			strcpy(&curMsg.sContent[0],content.c_str());
+		}
+
 		curNode->consoleQueue.push(curMsg);
 	}
 

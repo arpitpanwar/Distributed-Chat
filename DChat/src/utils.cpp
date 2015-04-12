@@ -10,6 +10,7 @@
 #include "headers/chatstructures.h"
 #include <stdlib.h>
 #include <unistd.h>
+#include <sstream>
 
 
 using namespace std;
@@ -63,21 +64,25 @@ void printAllUsers(map<string,string> clientMap ,bool isLeader){
 
 bool isPortAvailable(int port){
 		bool available = false;
+		char* hostname ="localhost";
 		struct sockaddr_in client;
+		struct hostent *server;
 	    int sock;
+
+	    server = gethostbyname(hostname);
 
 	    client.sin_family = AF_INET;
 	    client.sin_port = htons(port);
-	    client.sin_addr.s_addr = inet_addr("127.0.0.1");
+	    bcopy((char *)server->h_addr,(char *)&client.sin_addr.s_addr, server->h_length);
 
-	    sock = (int) socket(AF_INET, SOCK_STREAM, 0);
 
-	    int result = connect(sock, (struct sockaddr *) &client,sizeof(client));
+	    sock = (int) socket(AF_INET, SOCK_DGRAM, 0);
 
-	    if(result==0){
+	    int result = bind(sock, (struct sockaddr *) &client,sizeof(client));
+
+	    if(result<0){
 	    	available = false;
 	    }else{
-	    	perror("Error creating socket");
 	    	available = true;
 	    }
 
@@ -100,5 +105,15 @@ int getOpenPort(){
 			}
 		}
 		return port;
+}
+
+vector<string> split(string s, char delim) {
+    stringstream ss(s);
+    string item;
+    vector<string> elems;
+    while (getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
 }
 

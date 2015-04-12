@@ -6,6 +6,7 @@
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<netdb.h>
+#include<iostream>
 using namespace std;
 //TODO Decide how to work with type
 
@@ -16,6 +17,7 @@ typedef struct message{
 	int sType;
 	int lSequenceNums;
 	int timestamp;
+
 }MESSAGE;
 
 typedef struct heartbeat{
@@ -71,10 +73,9 @@ class Queue
     queue_.pop();
   }
   bool empty()
-      {
-	  	  std::unique_lock<std::mutex> mlock(mutex_);
-          return queue_.empty();
-      }
+  {
+      return queue_.empty();
+  }
 
   void push(const T& item)
   {
@@ -99,6 +100,7 @@ class Queue
 };
 
 int getOpenPort();
+vector<string> split(string,char);
 
 class chat_node{
 
@@ -114,7 +116,7 @@ public:
 	int portNum;
 	LEADER lead;
 	list<USERINFO> listofUsers;
-//	map<string,string> mClientmap;
+	map<string,string> mClientmap;
 	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
 //	Queue<message> chatQueue;
