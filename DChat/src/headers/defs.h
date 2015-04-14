@@ -13,6 +13,7 @@
 #include<algorithm>
 #include<stdlib.h>
 #include<string>
+#include <string.h>
 
 #define MESSAGE_TYPE_CHAT 1
 
@@ -26,7 +27,7 @@
 #define MESSAGE_TYPE_STATUS_ISALIVE 8
 #define MESSAGE_TYPE_CHAT_NOSEQ 9
 #define MESSAGE_TYPE_UPDATE 10
-#define DEFAULT_INTERFACE "eth0"
+#define DEFAULT_INTERFACE "em1"
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
