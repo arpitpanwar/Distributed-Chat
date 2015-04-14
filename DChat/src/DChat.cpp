@@ -14,7 +14,7 @@
 #include<netdb.h>
 #include<stdio.h>
 #include <string.h>
-#include<string>
+#include <string>
 #include<sstream>
 #include<pthread.h>
 #include<vector>
@@ -44,7 +44,7 @@ void addUser(char ipaddress[],int portNum,char username[]){
 
 	if(curNode->mClientmap.find(ipPort) == curNode->mClientmap.end()){
 
-	curNode->mClientmap[ipPort] = user;
+		curNode->mClientmap[ipPort] = user;
 	}
 
 }
@@ -342,7 +342,10 @@ void sendlist(char *msg){
 
 
 	addSocket(ip,port);
-
+	MESSAGE update;
+	update.sType = MESSAGE_TYPE_CHAT;
+	update.sContent = "NOTICE"+username+"joined on"+ip+":"+port;
+	curNode->sendQueue.push(update);
 }
 
 void *processThread(void *id){
@@ -375,6 +378,7 @@ void *processThread(void *id){
 		    				strcpy(ip,tokens[0].c_str());
 		    				strcpy(user,tokens[2].c_str());
 		    				addUserlist(ip,atoi(tokens[1].c_str()),user);
+
 		    			}
 
 		    	}else{
@@ -405,10 +409,8 @@ void *heartbeatThread(void *id){
 		char recvBeat[16];
 		int ret = recvfrom(heartBeatserver->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
 
-		cout<<"Received: "<<recvBeat<<" Return value is: "<<ret<<endl;
 
 		if(ret<0){
-			perror("Error Here");
 			end = clock();
 			if((start-end)/CLOCKS_PER_SEC>=10){
 
