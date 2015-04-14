@@ -122,7 +122,7 @@ public:
 	LEADER lead;
 	list<USERINFO> listofUsers;
 	map<string,string> mClientmap;
-	map<string,long> mStatusmap;
+	map<string,double> mStatusmap;
 	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
 //	Queue<message> chatQueue;

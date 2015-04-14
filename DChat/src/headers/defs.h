@@ -14,6 +14,7 @@
 #include<stdlib.h>
 #include<string>
 #include <string.h>
+#include <sys/time.h>
 
 #define MESSAGE_TYPE_CHAT 1
 

@@ -414,28 +414,28 @@ void *heartbeatThread(void *id){
 	struct timeval tv;
 	char sendBeat[16],recvBeat[16];
 	pthread_t sendThread;
-	clock_t start , end;
+	timeval start , end;
 
 	tv.tv_sec = 2;
-	start = clock();
+	gettimeofday(&start,NULL);
 	while(true){
 
-		if (setsockopt(heartBeatserver->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-			perror("Error while setting the timer for the heartbeat signal\n");
-		}
+	//	if (setsockopt(heartBeatserver->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+	//		perror("Error while setting the timer for the heartbeat signal\n");
+	//	}
 		char recvBeat[16];
 		int ret = recvfrom(heartBeatserver->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
 
 
 		if(ret<0){
-			end = clock();
-			if((start-end)/CLOCKS_PER_SEC>=10){
+			gettimeofday(&end,NULL);
+			if((start.tv_sec-end.tv_sec)/CLOCKS_PER_SEC>=10){
 
 				// int rc = pthread_create(&sendThread, NULL, heartbeatSend, (void *)NULL);
 				// if (rc){
 				  //      perror("Error creating thread");
 				 // }
-				 start = clock();
+				gettimeofday(&start,NULL);
 			}
 		}else{
 			string received = recvBeat;
@@ -443,11 +443,13 @@ void *heartbeatThread(void *id){
 
 			}else{
 				if(received.compare(BEAT)==0){
+					timeval curr;
+					gettimeofday(&curr,NULL);
 					string ip = string(inet_ntoa(client.sin_addr));
 					int port = ntohs(client.sin_port);
 					string key = ip+string(":")+to_string(port);
 
-					curNode->mStatusmap[key] = clock()/CLOCKS_PER_SEC;
+					curNode->mStatusmap[key] = curr.tv_sec;
 
 				}
 			}
@@ -480,17 +482,22 @@ void* heartbeatSend(void *id){
 
 				}
 
-		map<string,long>::iterator it = curNode->mStatusmap.begin();
-		long curTime = clock()/CLOCKS_PER_SEC;
+		map<string,double>::iterator it = curNode->mStatusmap.begin();
+		timeval start;
+		gettimeofday(&start,NULL);
+		//double curTime = clock()/CLOCKS_PER_SEC;
 		while(it != curNode->mStatusmap.end()){
 
-				if((it->second - curTime) >=30){
+				if((it->second - start.tv_sec) >=20){
+					if(!curNode->bIsLeader){
+						conductElection(curNode,heartBeatserver,ackServer);
+					}
 					//TODO To decide who should remove the users
 				}
 				it++;
 		}
 
-		sleep(10);
+		sleep(5);
 		}
 
 }
