@@ -33,7 +33,7 @@ udp_Server* heartBeatSendServer;
 chat_node* curNode;
 
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
-
+void* heartbeatSend(void *);
 
 
 void addUser(char ipaddress[],int portNum,char username[]){
@@ -150,11 +150,9 @@ void *recvMsg(void *id){
 		std::cout.flush();
 #endif
 
-
-
-
 	}
 }
+
 void *sendMsg(void *id){
 	struct sockaddr_in client;
 	int ret;
@@ -345,8 +343,8 @@ void sendlist(char *msg){
 
 	addSocket(ip,port);
 
-
 }
+
 void *processThread(void *id){
 
 	while(true){
@@ -394,21 +392,31 @@ void *heartbeatThread(void *id){
 	int addr_len = sizeof(struct sockaddr);
 	struct timeval tv;
 	char sendBeat[16],recvBeat[16];
+	pthread_t sendThread;
+	clock_t start , end;
 
-	tv.tv_sec = 1;
-	long lastAccessed = clock();
+	tv.tv_sec = 2;
+	start = clock();
 	while(true){
 
-		if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+		if (setsockopt(heartBeatserver->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
 			perror("Error while setting the timer for the heartbeat signal\n");
 		}
-
+		char recvBeat[16];
 		int ret = recvfrom(heartBeatserver->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
 
-		if(ret<0){
-			long currTime = clock();
-			if(currTime-lastAccessed>=10000){
+		cout<<"Received: "<<recvBeat<<" Return value is: "<<ret<<endl;
 
+		if(ret<0){
+			perror("Error Here");
+			end = clock();
+			if((start-end)/CLOCKS_PER_SEC>=10){
+
+				// int rc = pthread_create(&sendThread, NULL, heartbeatSend, (void *)NULL);
+				// if (rc){
+				  //      perror("Error creating thread");
+				 // }
+				 start = clock();
 			}
 		}else{
 			string received = recvBeat;
@@ -416,61 +424,58 @@ void *heartbeatThread(void *id){
 
 			}else{
 				if(received.compare(BEAT)==0){
-					strcpy(sendBeat,RESPONSE_BEAT);
-					ret = sendto(ackServer->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-				}
-			}
-		}
+					string ip = string(inet_ntoa(client.sin_addr));
+					int port = ntohs(client.sin_port);
+					string key = ip+string(":")+to_string(port);
 
+					curNode->mStatusmap[key] = clock()/CLOCKS_PER_SEC;
 
-	}
-
-	while(true){
-		char sendBeat[16],recvBeat[16];
-		//sleep(10000); //Sleep for 10 seconds
-		if(curNode->bIsLeader){
-			for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
-				client = *iterator;
-				strcpy(sendBeat,BEAT);
-				ret = sendto(heartBeatserver->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-				if ( ret < 0){
-					perror("error while sending the heartbeat signal \n");
 				}
-				tv.tv_sec = 5;
-				if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-					perror("Error while setting the timer for the heartbeat signal\n");
-				}
-				//TODO: NEED to check the logic for detecting dead clients and continue the heartbeat signal
-				if((ackServer->get_message(recvClient,recvBeat,sizeof(recvBeat)) < 0)){
-					perror("Timed out in receving the heartbeat \n ");
-					cout << "Declare the particular client dead\n";
-				}
-				if(strcmp(sendBeat,recvBeat)!=0){
-					cout << "heartbeat received is not right Need to conduct elections \n";
-				}
-			}
-		}
-		else{
-			tv.tv_sec = 5;
-			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-					perror("Error while setting the timer for the heartbeat signal\n");
-			}
-			ret = recvfrom(ackServer->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
-			if(ret < 0){
-				perror("Timed out in receiving the heartbeat from the sequencer");
-				cout << "conduct elections ";
-			}
-//TODO: Need to check the string that is being received ;
-			strcpy(sendBeat,"BEAT");
-			ret = sendto(ackServer->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-			if ( ret < 0){
-				perror("error while sending the heartbeat signal \n");
 			}
 		}
 
 	}
+
 
 }
+
+void* heartbeatSend(void *id){
+		struct sockaddr_in client;
+		int ret;
+		int addr_len = sizeof(struct sockaddr);
+		struct timeval tv;
+		char sendBeat[16],recvBeat[16];
+		while(true){
+				for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
+					client = *iterator;
+					strcpy(sendBeat,BEAT);
+					sockaddr_in client;
+					client.sin_addr.s_addr = iterator->sin_addr.s_addr;
+					client.sin_family = iterator->sin_family;
+					client.sin_port = htons(ntohs(iterator->sin_port)+2);
+
+					ret = sendto(heartBeatserver->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)addr_len);
+					if ( ret < 0){
+						perror("error while sending the heartbeat signal \n");
+					}
+
+				}
+
+		map<string,long>::iterator it = curNode->mStatusmap.begin();
+		long curTime = clock()/CLOCKS_PER_SEC;
+		while(it != curNode->mStatusmap.end()){
+
+				if((it->second - curTime) >=30){
+					//TODO To decide who should remove the users
+				}
+				it++;
+		}
+
+		sleep(10);
+		}
+
+}
+
 void *holdbackThread(void *id){
 	string printMsg;
 	while (true){
@@ -526,9 +531,12 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 	if(pthread_create(&threads[4],NULL,holdbackThread,NULL)){
 			ret++;
 	}
-//	if(pthread_create(&threads[5],NULL,heartbeatThread,NULL)){
-	//	ret++;
-//	}
+	if(pthread_create(&threads[5],NULL,heartbeatThread,NULL)){
+		ret++;
+	}
+	if(pthread_create(&threads[6],NULL,heartbeatSend,NULL)){
+			ret++;
+	}
 
 	return ret;
 
