@@ -58,13 +58,14 @@ void addSocket(char ipaddress[], int portNum){
 	curNode->listofSockets.push_back(client);
 }
 
-void addUserlist(char ipaddress[],int portNum, char username[]){
+void addUserlist(char ipaddress[],int portNum, char username[],char rxsize[]){
 	USERINFO temp;
 	addUser(ipaddress,portNum,username);
 
 	strcpy(temp.ipaddress,ipaddress);
 	sprintf(temp.portnum,"%d",portNum);
 	strcpy(temp.username,username);
+	strcpy(temp.rxBytes,rxsize);
 
 	curNode->listofUsers.push_back(temp);
 
@@ -253,7 +254,9 @@ int populatelistofUsers(char *users){
 		temp = *iterator;
 		memcpy(users,temp.ipaddress,IP_BUFSIZE);
 		memcpy(users+IP_BUFSIZE,temp.portnum,PORT_BUFSIZE);
-		users+=IP_BUFSIZE + PORT_BUFSIZE;
+		memcpy(users+IP_BUFSIZE+PORT_BUFSIZE,temp.username,USERNAME_BUFSIZE);
+		memcpy(users+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,temp.rxBytes,RXBYTE_BUFSIZE);
+		users+=IP_BUFSIZE + PORT_BUFSIZE+USERNAME_BUFSIZE+RXBYTE_BUFSIZE;
 		countNum ++;
 	}
 	return countNum;
@@ -265,6 +268,7 @@ void sendlist(char *msg){
 	char ip[IP_BUFSIZE];
 	char portNum[PORT_BUFSIZE];
 	char username[USERNAME_BUFSIZE];
+	char rxsize[RXBYTE_BUFSIZE];
 	int port;
 	LISTMSG msgTosend;
 	MESSAGE updateMsg;
@@ -275,9 +279,11 @@ void sendlist(char *msg){
 	memcpy(ip,msg,IP_BUFSIZE);
 	memcpy(portNum,msg+IP_BUFSIZE,PORT_BUFSIZE);
 	memcpy(username,msg+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
+	memcpy(rxsize,msg+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,RXBYTE_BUFSIZE);
+
 	sscanf(portNum, "%d", &port);
 
-	addUserlist(ip,port,username);
+	addUserlist(ip,port,username,rxsize);
 	client.sin_addr.s_addr = inet_addr(ip);
 	client.sin_family = AF_INET;
 	sscanf(portNum, "%d", &port);
@@ -296,7 +302,7 @@ void sendlist(char *msg){
 	}
 
 	updateMsg.sType = MESSAGE_TYPE_UPDATE;
-	string cont = ip+string(":")+portNum+string(":")+username;
+	string cont = ip+string(":")+portNum+string(":")+username+string(":")+rxsize;
 	strcpy(updateMsg.sContent,cont.c_str());
 
 	for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
@@ -344,7 +350,7 @@ void sendlist(char *msg){
 	addSocket(ip,port);
 	MESSAGE update;
 	update.sType = MESSAGE_TYPE_CHAT;
-	update.sContent = "NOTICE"+username+"joined on"+ip+":"+port;
+	strcpy(update.sContent, string(string("NOTICE ")+string(username)+string(" joined on ")+string(ip)+string(":")+to_string(port)).c_str());
 	curNode->sendQueue.push(update);
 }
 
@@ -370,14 +376,16 @@ void *processThread(void *id){
 		    	if(!curNode->bIsLeader && curMsg.sType == MESSAGE_TYPE_UPDATE){
 		    			vector<string> tokens = split(string(curMsg.sContent),':');
 
-		    			if(tokens.size()!=3){
+		    			if(tokens.size()!=4){
 		    				cout<<"Invalid update message received";
 		    			}else{
 		    				char ip[IP_BUFSIZE];
 		    				char user[USERNAME_BUFSIZE];
+		    				char rxsize[RXBYTE_BUFSIZE];
 		    				strcpy(ip,tokens[0].c_str());
 		    				strcpy(user,tokens[2].c_str());
-		    				addUserlist(ip,atoi(tokens[1].c_str()),user);
+		    				strcpy(rxsize,tokens[3].c_str());
+		    				addUserlist(ip,atoi(tokens[1].c_str()),user,rxsize);
 
 		    			}
 
@@ -500,6 +508,7 @@ void populatesocketClient(char userList[],int numUser){
 	char ipaddress[IP_BUFSIZE];
 	char port[PORT_BUFSIZE];
 	char username[USERNAME_BUFSIZE];
+	char rxsize[RXBYTE_BUFSIZE];
 	int  portNum;
 	char *ptr = userList;
 	for (int i = 0 ; i < numUser ; i++){
@@ -507,9 +516,10 @@ void populatesocketClient(char userList[],int numUser){
 		memcpy(ipaddress,ptr,IP_BUFSIZE);
 		memcpy(port,ptr+IP_BUFSIZE,PORT_BUFSIZE);
 		memcpy(username,ptr+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
+		memcpy(rxsize,ptr+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,RXBYTE_BUFSIZE);
 		istringstream temp(port);
 		temp >> portNum;
-		addUserlist(ipaddress,portNum,username);
+		addUserlist(ipaddress,portNum,username,rxsize);
 		ptr +=IP_BUFSIZE + PORT_BUFSIZE+USERNAME_BUFSIZE;
 	}
 
@@ -554,6 +564,7 @@ int main(int argc, char *argv[]) {
 
 	char ipaddress[IP_BUFSIZE];
 	char username[USERNAME_BUFSIZE];
+	char rxsize[RXBYTE_BUFSIZE];
 	int portNum;
 	int entry;
 	bool isSeq;
@@ -574,13 +585,16 @@ int main(int argc, char *argv[]) {
 	cout<<"Port is:"<<portNum<<endl;
 	strcpy(username,argv[1]);
 	strcpy(ipaddress,findip().c_str());
+	string bytes = getRxBytes();
+	strcpy(rxsize,bytes.c_str());
+
 	curServer = new udp_Server(ipaddress,portNum);
 	ackServer = new udp_Server(ipaddress,portNum+1);
 	heartBeatserver = new udp_Server(ipaddress,portNum+2);
 	curNode = new chat_node(username,entry,ipaddress,portNum);
 
 	if(isSeq){
-		addUserlist(ipaddress,portNum,username);
+		addUserlist(ipaddress,portNum,username,rxsize);
 		addSocket(ipaddress,portNum);
 		populateLeader(&curNode->lead,ipaddress,portNum,username);
 		curNode->bIsLeader =true;
@@ -618,6 +632,8 @@ int main(int argc, char *argv[]) {
 		memcpy(joinMsg.sContent,ipaddress,IP_BUFSIZE);
 		sprintf(joinMsg.sContent+IP_BUFSIZE,"%d",portNum);
 		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE,username,USERNAME_BUFSIZE);
+		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,bytes.c_str(),RXBYTE_BUFSIZE);
+
 		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
 		if ( ret < 0){
 			perror("error while sending the message \n");
@@ -639,6 +655,7 @@ int main(int argc, char *argv[]) {
 		perror("Error Creating threads \n");
 		exit(1);
 	}
+
 
 	while(true){
 		MESSAGE curMsg;

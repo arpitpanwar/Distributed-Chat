@@ -43,6 +43,7 @@ typedef struct UserInfo{
 	char ipaddress[IP_BUFSIZE];
 	char portnum[PORT_BUFSIZE];
 	char username[USERNAME_BUFSIZE];
+	char rxBytes[RXBYTE_BUFSIZE];
 }USERINFO;
 
 template <typename T>
@@ -59,6 +60,8 @@ class Queue
     }
     auto item = queue_.front();
     queue_.pop();
+    mlock.unlock();
+
     return item;
   }
 
@@ -101,6 +104,8 @@ class Queue
 
 int getOpenPort();
 vector<string> split(string,char);
+string exec(char*);
+string getRxBytes();
 
 class chat_node{
 

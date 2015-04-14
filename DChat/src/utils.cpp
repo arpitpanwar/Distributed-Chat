@@ -117,3 +117,51 @@ vector<string> split(string s, char delim) {
     return elems;
 }
 
+string exec(char* cmd) {
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "ERROR";
+    char buffer[128];
+    std::string result = "";
+    while(!feof(pipe)) {
+    	if(fgets(buffer, 128, pipe) != NULL)
+    		result += buffer;
+    }
+    pclose(pipe);
+    return result;
+}
+
+static inline std::string &ltrim(std::string &s) {
+        s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
+        return s;
+}
+
+static inline std::string &rtrim(std::string &s) {
+        s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+        return s;
+}
+
+static inline std::string &trim(std::string &s) {
+        return ltrim(rtrim(s));
+}
+
+string getRxBytes(){
+
+	string result = exec("/sbin/ifconfig");
+	vector<string> tokens = split(result,'\n');
+	int i=0;
+	string prefix("RX bytes:");
+
+	for(i=0;i<tokens.size();i++){
+		string temp = tokens[i];
+		temp = trim(temp);
+		if (temp.substr(0, prefix.size()) == prefix){
+			vector<string> data = split(temp,'(');
+			vector<string> values = split(data[0],':');
+			return trim(values[1]);
+		}
+
+	}
+
+
+
+}

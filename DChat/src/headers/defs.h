@@ -27,7 +27,7 @@
 #define MESSAGE_TYPE_STATUS_ISALIVE 8
 #define MESSAGE_TYPE_CHAT_NOSEQ 9
 #define MESSAGE_TYPE_UPDATE 10
-#define DEFAULT_INTERFACE "em1"
+#define DEFAULT_INTERFACE "eth0"
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
@@ -35,6 +35,7 @@
 #define IP_BUFSIZE 16
 #define PORT_BUFSIZE 5
 #define USERNAME_BUFSIZE 32
+#define RXBYTE_BUFSIZE 32
 #define BASE_PORT 8980
 #define USAGE "Usage:\nTo start a new chat: dchat <NAME> \nTo join an existing chat: dchat <NAME> <IP>:<PORT>\n<NAME>: The name to be visible to other users\n<IP>:<PORT> :- IP Address and Port of the client to send join request to "
 
