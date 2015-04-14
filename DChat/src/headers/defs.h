@@ -14,21 +14,30 @@
 #include<stdlib.h>
 #include<string>
 
-#define MESSAGE_TYPE_CHAT "Chat:"
+#define MESSAGE_TYPE_CHAT 1
 
-#define MESSAGE_TYPE_ELECTION "Election:"
-#define MESSAGE_TYPE_USERLIST "UserList:"
+#define MESSAGE_TYPE_ELECTION 2
+#define MESSAGE_TYPE_USERLIST 3
 
-#define MESSAGE_TYPE_STATUS "Status:"
-#define MESSAGE_TYPE_STATUS_JOIN "Join"
-#define MESSAGE_TYPE_STATUS_LEAVE "Leave"
-#define MESSAGE_TYPE_STATUS_ALIVE "Alive"
-#define MESSAGE_TYPE_STATUS_ISALIVE "IsAlive"
-
-#define DEFAULT_INTERFACE "wlan0"
+#define MESSAGE_TYPE_STATUS 4
+#define MESSAGE_TYPE_STATUS_JOIN 5
+#define MESSAGE_TYPE_STATUS_LEAVE 6
+#define MESSAGE_TYPE_STATUS_ALIVE 7
+#define MESSAGE_TYPE_STATUS_ISALIVE 8
+#define MESSAGE_TYPE_CHAT_NOSEQ 9
+#define MESSAGE_TYPE_UPDATE 10
+#define DEFAULT_INTERFACE "eth0"
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
-#define NUM_THREADS 5
+#define NUM_THREADS 10
+#define IP_BUFSIZE 16
+#define PORT_BUFSIZE 5
+#define USERNAME_BUFSIZE 32
+#define BASE_PORT 8980
+#define USAGE "Usage:\nTo start a new chat: dchat <NAME> \nTo join an existing chat: dchat <NAME> <IP>:<PORT>\n<NAME>: The name to be visible to other users\n<IP>:<PORT> :- IP Address and Port of the client to send join request to "
+
+#define BEAT "BEAT"
+#define RESPONSE_BEAT "ALIVE"
 
 #endif /* SRC_HEADERS_DEFS_H_ */

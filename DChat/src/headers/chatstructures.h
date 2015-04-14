@@ -6,30 +6,44 @@
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<netdb.h>
+#include<iostream>
 using namespace std;
 //TODO Decide how to work with type
 
+
 typedef struct message{
 
-	string sContent;
-	string sType;
-	string sIpPort;
-	long lSequenceNums;
+	char sContent[MESSAGE_SIZE];
+	int sType;
+	int lSequenceNums;
+	int timestamp;
 
 }MESSAGE;
 
+typedef struct heartbeat{
+	char userName[USERNAME_BUFSIZE];
+	int portNum;
+	char ipAddress[IP_BUFSIZE];
+}HEARTBEAT;
+
+typedef struct ListMessage{
+	int numUsers;
+	char leaderip[USERNAME_BUFSIZE];
+	int  leaderPort;
+	char listUsers[MESSAGE_SIZE];
+}LISTMSG;
+
 typedef struct leader{
-	string sIpAddress;
+	char sIpAddress[IP_BUFSIZE];
 	int sPort;
-	string sName;
+	char sName[USERNAME_BUFSIZE];
 }LEADER;
 
-typedef struct sendmessage{
-	string message;
-	list<sockaddr_in> memberIP;
-}SENDMSG;
-
-
+typedef struct UserInfo{
+	char ipaddress[IP_BUFSIZE];
+	char portnum[PORT_BUFSIZE];
+	char username[USERNAME_BUFSIZE];
+}USERINFO;
 
 template <typename T>
 class Queue
@@ -59,10 +73,9 @@ class Queue
     queue_.pop();
   }
   bool empty()
-      {
-	  	  std::unique_lock<std::mutex> mlock(mutex_);
-          return queue_.empty();
-      }
+  {
+      return queue_.empty();
+  }
 
   void push(const T& item)
   {
@@ -86,30 +99,32 @@ class Queue
   std::condition_variable cond_;
 };
 
+int getOpenPort();
+vector<string> split(string,char);
 
 class chat_node{
 
 public:
-	chat_node(string userName,int entry,string ipaddr , int port  );
+	chat_node(char userName[],int entry,char ipaddr[] , int port  );
 
 	~chat_node();
 	bool bIsLeader;
-	long lSequencenums;
+//	long lSequencenums;
 	int entryNum;
-	string sUserName;
+	char ipAddress[IP_BUFSIZE];
+	char sUserName[USERNAME_BUFSIZE];
+	int portNum;
 	LEADER lead;
+	list<USERINFO> listofUsers;
 	map<string,string> mClientmap;
-//	map<string,list<string> > mAckMap;
-//	list<string> lPrintQueue;
-//	list<string> lSendQueue;
-//	list<MESSAGE> mHoldbackQueue;
-	list<sockaddr_in> listOfUsers;
+	map<string,long> mStatusmap;
+	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
-	Queue<message> chatQueue;
-	Queue<message> statusQueue;
+//	Queue<message> chatQueue;
+//	Queue<message> statusQueue;
 	Queue<message> consoleQueue;
-	Queue<sendmessage> sendQueue;
-	Queue<message> ackQueue;
+	Queue<message> sendQueue;
+//	Queue<message> ackQueue;
 	Queue<string> printQueue;
 };
 
