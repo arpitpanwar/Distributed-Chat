@@ -81,6 +81,7 @@ void *printConsole(void *id){
 #endif
 			//msg = curNode->printQueue.front();
 			msg =curNode->printQueue.pop();
+
 			cout <<msg<<endl;
 
 	}
@@ -113,14 +114,14 @@ void *recvMsg(void *id){
 
 		client.sin_port = htons(ntohs(client.sin_port)+1);
 
-		if(msg.sType != MESSAGE_TYPE_STATUS_JOIN){
-				ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
-						(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-				if ( ret < 0){
-					perror("error while sending the message \n");
-					continue;
-				}
+		{
+			ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
+					(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+			if ( ret < 0){
+				perror("error while sending the message \n");
+				continue;
 			}
+		}
 
 
 
@@ -343,8 +344,10 @@ void sendlist(char *msg){
 
 	addSocket(ip,port);
 	MESSAGE update;
+	string temp;
 	update.sType = MESSAGE_TYPE_CHAT;
-	update.sContent = "NOTICE"+username+"joined on"+ip+":"+port;
+	strcpy(update.sContent,string("\nNOTICE::"+string(username)+"joined on::"+
+				string(ip)+":"+to_string(port)).c_str());
 	curNode->sendQueue.push(update);
 }
 
@@ -382,7 +385,8 @@ void *processThread(void *id){
 		    			}
 
 		    	}else{
-		    		curNode->sendQueue.push(curMsg);
+		    		if(curMsg.sType != MESSAGE_TYPE_UPDATE)
+		    			curNode->sendQueue.push(curMsg);
 		    	}
 		    }
 
@@ -603,7 +607,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 
-		//port >> sendPort;
+
 		strcpy(toSendip,tokens[0].c_str());
 		sendPort = stoi(tokens[1]);
 
@@ -613,11 +617,11 @@ int main(int argc, char *argv[]) {
 
 		//Entering details of the user to be sent so that it can join the group.
 		joinMsg.sType = MESSAGE_TYPE_STATUS_JOIN;
-//		strcpy(joinMsg.ackIp,curNode->ipAddress);
-//		joinMsg.ackPort = ackServer->get_portNum();
+
 		memcpy(joinMsg.sContent,ipaddress,IP_BUFSIZE);
 		sprintf(joinMsg.sContent+IP_BUFSIZE,"%d",portNum);
 		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE,username,USERNAME_BUFSIZE);
+		cout << joinMsg.sContent;
 		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
 		if ( ret < 0){
 			perror("error while sending the message \n");
@@ -629,6 +633,14 @@ int main(int argc, char *argv[]) {
 			perror("error while sending the message \n");
 			//continue;
 		}
+		char ack[4];
+		seqClient.sin_port = htons(ntohs(seqClient.sin_port )+1);
+		ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
+						(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
+		if ( ret < 0){
+			perror("error while sending the message \n");
+		}
+
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
 
