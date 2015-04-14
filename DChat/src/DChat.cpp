@@ -35,6 +35,7 @@ chat_node* curNode;
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 void* heartbeatSend(void *);
 
+void conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer);
 
 void addUser(char ipaddress[],int portNum,char username[]){
 
@@ -141,8 +142,12 @@ void *recvMsg(void *id){
 
 		}
 		else{
-
-			curNode->holdbackQueue.push(msg);
+			if(msg.sType == MESSAGE_TYPE_ELECTION){
+				conductElection(curNode, curServer, ackServer);
+			}
+			else{
+				curNode->holdbackQueue.push(msg);
+			}
 		}
 
 #ifdef PRINT
