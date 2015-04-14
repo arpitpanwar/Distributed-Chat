@@ -25,6 +25,7 @@
 #define MESSAGE_TYPE_STATUS_ALIVE 7
 #define MESSAGE_TYPE_STATUS_ISALIVE 8
 #define MESSAGE_TYPE_CHAT_NOSEQ 9
+#define MESSAGE_TYPE_UPDATE 10
 #define DEFAULT_INTERFACE "eth0"
 
 #define MESSAGE_SIZE 2048
@@ -35,5 +36,8 @@
 #define USERNAME_BUFSIZE 32
 #define BASE_PORT 8980
 #define USAGE "Usage:\nTo start a new chat: dchat <NAME> \nTo join an existing chat: dchat <NAME> <IP>:<PORT>\n<NAME>: The name to be visible to other users\n<IP>:<PORT> :- IP Address and Port of the client to send join request to "
+
+#define BEAT "BEAT"
+#define RESPONSE_BEAT "ALIVE"
 
 #endif /* SRC_HEADERS_DEFS_H_ */
