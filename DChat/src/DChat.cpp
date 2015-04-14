@@ -357,12 +357,8 @@ void sendlist(char *msg){
 	MESSAGE update;
 	string temp;
 	update.sType = MESSAGE_TYPE_CHAT;
-<<<<<<< HEAD
-	strcpy(update.sContent, string(string("NOTICE ")+string(username)+string(" joined on ")+string(ip)+string(":")+to_string(port)).c_str());
-=======
-	strcpy(update.sContent,string("\nNOTICE::"+string(username)+"joined on::"+
-				string(ip)+":"+to_string(port)).c_str());
->>>>>>> a202952975340024d6dbf0c5401557f30313d4e6
+	strcpy(update.sContent, string(string("NOTICE:: ")+string(username)+string(" joined on:: ")+string(ip)+string(":")+to_string(port)).c_str());
+
 	curNode->sendQueue.push(update);
 }
 
@@ -644,12 +640,7 @@ int main(int argc, char *argv[]) {
 		memcpy(joinMsg.sContent,ipaddress,IP_BUFSIZE);
 		sprintf(joinMsg.sContent+IP_BUFSIZE,"%d",portNum);
 		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE,username,USERNAME_BUFSIZE);
-<<<<<<< HEAD
 		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,bytes.c_str(),RXBYTE_BUFSIZE);
-
-=======
-		cout << joinMsg.sContent;
->>>>>>> a202952975340024d6dbf0c5401557f30313d4e6
 		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
 		if ( ret < 0){
 			perror("error while sending the message \n");
