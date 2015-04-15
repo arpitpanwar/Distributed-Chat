@@ -6,9 +6,11 @@
 #include<sys/types.h>
 #include<sys/socket.h>
 #include<netdb.h>
+#include<iostream>
+
 using namespace std;
 //TODO Decide how to work with type
-
+void addSocket(char ipaddress[], int portNum);
 
 typedef struct message{
 
@@ -16,6 +18,7 @@ typedef struct message{
 	int sType;
 	int lSequenceNums;
 	int timestamp;
+
 }MESSAGE;
 
 typedef struct heartbeat{
@@ -37,10 +40,12 @@ typedef struct leader{
 	char sName[USERNAME_BUFSIZE];
 }LEADER;
 
-typedef struct ipPort{
+typedef struct UserInfo{
 	char ipaddress[IP_BUFSIZE];
 	char portnum[PORT_BUFSIZE];
-}IPPORT;
+	char username[USERNAME_BUFSIZE];
+	char rxBytes[RXBYTE_BUFSIZE];
+}USERINFO;
 
 template <typename T>
 class Queue
@@ -56,6 +61,8 @@ class Queue
     }
     auto item = queue_.front();
     queue_.pop();
+    mlock.unlock();
+
     return item;
   }
 
@@ -70,10 +77,9 @@ class Queue
     queue_.pop();
   }
   bool empty()
-      {
-	  	  std::unique_lock<std::mutex> mlock(mutex_);
-          return queue_.empty();
-      }
+  {
+      return queue_.empty();
+  }
 
   void push(const T& item)
   {
@@ -97,6 +103,10 @@ class Queue
   std::condition_variable cond_;
 };
 
+int getOpenPort();
+vector<string> split(string,char);
+string exec(char*);
+string getRxBytes();
 
 class chat_node{
 
@@ -105,14 +115,17 @@ public:
 
 	~chat_node();
 	bool bIsLeader;
+	int  statusServer;
 //	long lSequencenums;
 	int entryNum;
 	char ipAddress[IP_BUFSIZE];
 	char sUserName[USERNAME_BUFSIZE];
+	char rxBytes[RXBYTE_BUFSIZE];
 	int portNum;
 	LEADER lead;
-	list<IPPORT> listofUsers;
-//	map<string,string> mClientmap;
+	list<USERINFO> listofUsers;
+	map<string,string> mClientmap;
+	map<string,double> mStatusmap;
 	list<sockaddr_in> listofSockets;
 	Queue<message> holdbackQueue;
 //	Queue<message> chatQueue;
@@ -125,5 +138,5 @@ public:
 
 
 
-
+void updateLeader(chat_node* curNode);
 
