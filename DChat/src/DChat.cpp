@@ -35,7 +35,7 @@ chat_node* curNode;
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 void* heartbeatSend(void *);
 
-void conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer);
+int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer);
 
 void addUser(char ipaddress[],int portNum,char username[]){
 
@@ -141,14 +141,46 @@ void *recvMsg(void *id){
 
 			curNode->consoleQueue.push(msg);
 
+
+		}
+		else if ( msg.sType == MESSAGE_TYPE_LEADER){
+			list<UserInfo>::iterator itr;
+
+			string content = msg.sContent;
+
+			curNode->mStatusmap.clear();
+			curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
+			curNode->listofSockets.clear();
+
+			for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
+				USERINFO user;
+
+				user = *itr;
+				if(strcmp(user.username,curNode->lead.sName)==0){
+					curNode->listofUsers.erase(itr);
+				}
+
+			}
+
+			strcpy(curNode->lead.sIpAddress,content.substr(0,IP_BUFSIZE).c_str());
+			curNode->lead.sPort = stoi(content.substr(IP_BUFSIZE,IP_BUFSIZE+PORT_BUFSIZE));
+			strcpy(curNode->lead.sName ,content.substr(IP_BUFSIZE+PORT_BUFSIZE,IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE).c_str());
+			strcpy(curNode->rxBytes ,content.substr(IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE+RXBYTE_BUFSIZE).c_str());
+
+			addSocket(curNode->lead.sIpAddress,curNode->lead.sPort);
+
+			//strcpy(curNode->lead.sIpAddress,msg.sContent);
+
+			//strcpy(msgTosend.sContent+IP_BUFSIZE,to_string(curNode->lead.sPort).c_str());
+		//strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE,curNode->lead.sName);
+			//	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE
+				//		+USERNAME_BUFSIZE,curNode->rxBytes);
+
 		}
 		else{
-			if(msg.sType == MESSAGE_TYPE_ELECTION){
-				conductElection(curNode, curServer, ackServer);
-			}
-			else{
-				curNode->holdbackQueue.push(msg);
-			}
+
+			curNode->holdbackQueue.push(msg);
+
 		}
 
 #ifdef PRINT
@@ -426,7 +458,6 @@ void *heartbeatThread(void *id){
 		char recvBeat[16];
 		int ret = recvfrom(heartBeatserver->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
 
-
 		if(ret<0){
 			gettimeofday(&end,NULL);
 			if((start.tv_sec-end.tv_sec)/CLOCKS_PER_SEC>=10){
@@ -438,10 +469,8 @@ void *heartbeatThread(void *id){
 				gettimeofday(&start,NULL);
 			}
 		}else{
-			string received = recvBeat;
-			if(received.compare(RESPONSE_BEAT)==0){
+				string received = recvBeat;
 
-			}else{
 				if(received.compare(BEAT)==0){
 					timeval curr;
 					gettimeofday(&curr,NULL);
@@ -452,7 +481,26 @@ void *heartbeatThread(void *id){
 					curNode->mStatusmap[key] = curr.tv_sec;
 
 				}
-			}
+				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))){
+
+					if(curNode->statusServer != ELECTION_HAPPENING){
+						{
+							int ret;
+							char ackMsg[4] = "ACK";
+							ret = sendto(heartBeatserver->get_socket(),&ackMsg,sizeof(ackMsg),0,
+									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+							if ( ret < 0){
+								perror("error while sending the message \n");
+								continue;
+							}
+						}
+
+
+						curNode->statusServer = ELECTION_HAPPENING;
+						conductElection(curNode, curServer, ackServer);
+					}
+				}
+
 		}
 
 	}
@@ -488,9 +536,15 @@ void* heartbeatSend(void *id){
 		//double curTime = clock()/CLOCKS_PER_SEC;
 		while(it != curNode->mStatusmap.end()){
 
-				if((it->second - start.tv_sec) >=20){
+				if((  start.tv_sec - it->second) >=20){
 					if(!curNode->bIsLeader){
-						conductElection(curNode,heartBeatserver,ackServer);
+						if(curNode->statusServer != ELECTION_HAPPENING){
+
+
+							curNode->statusServer = ELECTION_HAPPENING;
+							conductElection(curNode,heartBeatserver,ackServer);
+						}
+
 					}
 					//TODO To decide who should remove the users
 				}
@@ -610,12 +664,16 @@ int main(int argc, char *argv[]) {
 	curNode = new chat_node(username,entry,ipaddress,portNum);
 
 	if(isSeq){
+		strcpy(curNode->rxBytes,rxsize);
+		curNode->statusServer = NORMAL_OPERATION;
 		addUserlist(ipaddress,portNum,username,rxsize);
 		addSocket(ipaddress,portNum);
 		populateLeader(&curNode->lead,ipaddress,portNum,username);
 		curNode->bIsLeader =true;
 	}
 	else{
+		strcpy(curNode->rxBytes,rxsize);
+		curNode->statusServer = NORMAL_OPERATION;
 		curNode->bIsLeader = false;
 		MESSAGE joinMsg;
 		LISTMSG userListMsg;

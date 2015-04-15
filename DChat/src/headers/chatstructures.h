@@ -7,9 +7,10 @@
 #include<sys/socket.h>
 #include<netdb.h>
 #include<iostream>
+
 using namespace std;
 //TODO Decide how to work with type
-
+void addSocket(char ipaddress[], int portNum);
 
 typedef struct message{
 
@@ -114,10 +115,12 @@ public:
 
 	~chat_node();
 	bool bIsLeader;
+	int  statusServer;
 //	long lSequencenums;
 	int entryNum;
 	char ipAddress[IP_BUFSIZE];
 	char sUserName[USERNAME_BUFSIZE];
+	char rxBytes[RXBYTE_BUFSIZE];
 	int portNum;
 	LEADER lead;
 	list<USERINFO> listofUsers;
@@ -135,5 +138,5 @@ public:
 
 
 
-
+void updateLeader(chat_node* curNode);
 
