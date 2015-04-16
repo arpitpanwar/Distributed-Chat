@@ -752,8 +752,15 @@ int main(int argc, char *argv[]) {
 		MESSAGE curMsg;
 		string inpString;
 		getline(cin,inpString);
+
+		if(inpString.size() >= MESSAGE_SIZE){
+			cout<<INVALID_MESSAGE_SIZE<<endl;
+			continue;
+		}
+
 		curMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(curMsg.sContent,inpString.c_str());
+
 
 		if(curNode->bIsLeader){
 			string content = curMsg.sContent;

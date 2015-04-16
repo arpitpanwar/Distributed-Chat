@@ -140,4 +140,5 @@ public:
 
 
 void updateLeader(chat_node* curNode);
-
+char* decrypt(char* data);
+char* encrypt(char* data);

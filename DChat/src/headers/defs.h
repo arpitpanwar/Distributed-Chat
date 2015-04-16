@@ -44,6 +44,8 @@
 #define BASE_PORT 8980
 #define USAGE "Usage:\nTo start a new chat: dchat <NAME> \nTo join an existing chat: dchat <NAME> <IP>:<PORT>\n<NAME>: The name to be visible to other users\n<IP>:<PORT> :- IP Address and Port of the client to send join request to "
 
+#define INVALID_MESSAGE_SIZE "Only Chat messages less that 2048 characters supported"
+
 #define BEAT "BEAT"
 #define RESPONSE_BEAT "ALIVE"
 

@@ -161,7 +161,41 @@ string getRxBytes(){
 		}
 
 	}
+}
 
+char* encrypt(char* data){
 
+	int len = strlen(data);
+	char* output = (char*)malloc(len*sizeof(char));
+
+	for(int i=0;i<len;i++){
+
+		char c = data[i];
+
+		if(c!='\0' | c!='\n' | c!='\r'){
+			c = (c+6)%255;
+		}
+		output[i] = c;
+
+	}
+	return output;
+}
+
+char* decrypt(char* data){
+
+	int len = strlen(data);
+		char* output = (char*)malloc(len*sizeof(char));
+
+		for(int i=0;i<len;i++){
+
+			char c = data[i];
+
+			if(c!='\0'| c!='\n' | c!='\r'){
+				c = (c-6)%255;
+			}
+			output[i] = c;
+
+		}
+		return output;
 
 }
