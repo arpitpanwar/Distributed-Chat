@@ -150,9 +150,9 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	//TODO To define message types here:- Both sending and receiving
 	MESSAGE msgTosend;
 	msgTosend.sType = MESSAGE_TYPE_LEADER;
-	strcpy(msgTosend.sContent,curNode->lead.sIpAddress);
-	strcpy(msgTosend.sContent+IP_BUFSIZE,to_string(curNode->lead.sPort).c_str());
-	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE,curNode->lead.sName);
+	strcpy(msgTosend.sContent,curNode->ipAddress);
+	strcpy(msgTosend.sContent+IP_BUFSIZE,to_string(curNode->portNum).c_str());
+	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE,curNode->sUserName);
 	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE
 			+USERNAME_BUFSIZE,curNode->rxBytes);
 
