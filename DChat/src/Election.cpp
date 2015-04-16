@@ -19,7 +19,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	cout << "Conducting Elections...\n";
 	int ret = 0 ;
 	//Check if your node has the highest port number.
-	list<UserInfo>::iterator itr;
+	list<UserInfo>::iterator itr,itr2;
 	bool isHighest = true;
 	int numMsgReceived = 0;
 
@@ -57,7 +57,6 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	if((curNode->listofUsers.size() == 1) || (isHighest == true) || (numMsgReceived == 0)){
 		cout << "I am the leader\n";
 		curNode->bIsLeader = true;
-		updateLeader(curNode);
 		curNode->mStatusmap.clear();
 		curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 		curNode->listofSockets.clear();
@@ -65,19 +64,22 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			USERINFO user;
 
 			user = *itr;
-			if(strcmp(user.username,curNode->lead.sName)==0){
-				curNode->listofUsers.erase(itr);
+			if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
+				itr2 = itr;
+				//curNode->listofUsers.erase(itr);
+				//break;
 			}
 			else{
 				addSocket(user.ipaddress,atoi(user.portnum));
-				sendLeaderMessage(curNode,curServer,ackServer,user);
+				if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
+					sendLeaderMessage(curNode,curServer,ackServer,user);
+				}
 			}
 		}
-
-
-
-
+		curNode->listofUsers.erase(itr2);
 	}
+	updateLeader(curNode);
+
 	return ret;
 }
 

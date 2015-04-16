@@ -29,9 +29,10 @@ typedef struct heartbeat{
 
 typedef struct ListMessage{
 	int numUsers;
-	char leaderip[USERNAME_BUFSIZE];
+	char leaderip[IP_BUFSIZE];
 	int  leaderPort;
 	char listUsers[MESSAGE_SIZE];
+	char leaderName[USERNAME_BUFSIZE];
 }LISTMSG;
 
 typedef struct leader{

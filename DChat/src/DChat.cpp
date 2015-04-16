@@ -114,8 +114,13 @@ void *recvMsg(void *id){
 		string ip = string(inet_ntoa(client.sin_addr));
 		int port = ntohs(client.sin_port);
 
-		client.sin_port = htons(ntohs(client.sin_port)+1);
+		if(msg.sType != MESSAGE_TYPE_ELECTION){
 
+		client.sin_port = htons(ntohs(client.sin_port)+1);
+		}
+		else{
+			client.sin_port = htons(ntohs(client.sin_port)-1);
+		}
 		{
 			ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
 					(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
@@ -146,8 +151,7 @@ void *recvMsg(void *id){
 		else if ( msg.sType == MESSAGE_TYPE_LEADER){
 			list<UserInfo>::iterator itr;
 
-			string content = msg.sContent;
-
+			string content = string(msg.sContent);
 			curNode->mStatusmap.clear();
 			curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 			curNode->listofSockets.clear();
@@ -158,14 +162,18 @@ void *recvMsg(void *id){
 				user = *itr;
 				if(strcmp(user.username,curNode->lead.sName)==0){
 					curNode->listofUsers.erase(itr);
+					break;
 				}
 
 			}
+			char portNum[PORT_BUFSIZE];
+			sscanf(portNum, "%d", &port);
+			memcpy(curNode->lead.sIpAddress,msg.sContent,IP_BUFSIZE);
+			memcpy(portNum,msg.sContent+IP_BUFSIZE,PORT_BUFSIZE);
+			memcpy(curNode->lead.sName ,msg.sContent+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
+			memcpy(curNode->rxBytes ,msg.sContent+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,RXBYTE_BUFSIZE);
 
-			strcpy(curNode->lead.sIpAddress,content.substr(0,IP_BUFSIZE).c_str());
-			curNode->lead.sPort = stoi(content.substr(IP_BUFSIZE,IP_BUFSIZE+PORT_BUFSIZE));
-			strcpy(curNode->lead.sName ,content.substr(IP_BUFSIZE+PORT_BUFSIZE,IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE).c_str());
-			strcpy(curNode->rxBytes ,content.substr(IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE+RXBYTE_BUFSIZE).c_str());
+			curNode->lead.sPort = stoi(string(portNum));
 
 			addSocket(curNode->lead.sIpAddress,curNode->lead.sPort);
 
@@ -332,6 +340,8 @@ void sendlist(char *msg){
 	msgTosend.leaderPort = curNode->lead.sPort;
 	strcpy(msgTosend.leaderip,curNode->lead.sIpAddress);
 	msgTosend.numUsers = num;
+	strcpy(msgTosend.leaderName,curNode->lead.sName);
+
 
 	ret = sendto(curServer->get_socket(),&msgTosend,sizeof(LISTMSG),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 	if ( ret < 0){
@@ -487,9 +497,8 @@ void *heartbeatThread(void *id){
 						{
 							int ret;
 							char ackMsg[4] = "ACK";
-							ret = sendto(heartBeatserver->get_socket(),&ackMsg,sizeof(ackMsg),0,
-									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-							if ( ret < 0){
+							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
+													(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));							if ( ret < 0){
 								perror("error while sending the message \n");
 								continue;
 							}
@@ -590,7 +599,7 @@ void populatesocketClient(char userList[],int numUser){
 		istringstream temp(port);
 		temp >> portNum;
 		addUserlist(ipaddress,portNum,username,rxsize);
-		ptr +=IP_BUFSIZE + PORT_BUFSIZE+USERNAME_BUFSIZE;
+		ptr +=IP_BUFSIZE + PORT_BUFSIZE+USERNAME_BUFSIZE+RXBYTE_BUFSIZE;
 	}
 
 }
@@ -727,7 +736,9 @@ int main(int argc, char *argv[]) {
 
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
-
+		strcpy(curNode->lead.sIpAddress,userListMsg.leaderip);
+		curNode->lead.sPort = userListMsg.leaderPort;
+		strcpy(curNode->lead.sName ,userListMsg.leaderName);
 	}
 
 
@@ -744,14 +755,15 @@ int main(int argc, char *argv[]) {
 		curMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(curMsg.sContent,inpString.c_str());
 
-		string content = curMsg.sContent;
-		string key = curNode->lead.sIpAddress+string(":")+to_string(curNode->lead.sPort);
+		if(curNode->bIsLeader){
+			string content = curMsg.sContent;
+			string key = curNode->lead.sIpAddress+string(":")+to_string(curNode->lead.sPort);
 
-		if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
-			content = curNode->mClientmap[key]+string(":: ")+content;
-			strcpy(&curMsg.sContent[0],content.c_str());
+			if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
+				content = curNode->mClientmap[key]+string(":: ")+content;
+				strcpy(&curMsg.sContent[0],content.c_str());
+			}
 		}
-
 		curNode->consoleQueue.push(curMsg);
 	}
 
