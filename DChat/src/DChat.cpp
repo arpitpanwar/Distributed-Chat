@@ -177,12 +177,7 @@ void *recvMsg(void *id){
 
 			addSocket(curNode->lead.sIpAddress,curNode->lead.sPort);
 
-			//strcpy(curNode->lead.sIpAddress,msg.sContent);
-
-			//strcpy(msgTosend.sContent+IP_BUFSIZE,to_string(curNode->lead.sPort).c_str());
-		//strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE,curNode->lead.sName);
-			//	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE
-				//		+USERNAME_BUFSIZE,curNode->rxBytes);
+			curNode->statusServer = NORMAL_OPERATION;
 
 		}
 		else{
@@ -480,7 +475,7 @@ void *heartbeatThread(void *id){
 			}
 		}else{
 				string received = recvBeat;
-
+				cout << received<<endl;
 				if(received.compare(BEAT)==0){
 					timeval curr;
 					gettimeofday(&curr,NULL);
@@ -497,6 +492,8 @@ void *heartbeatThread(void *id){
 						{
 							int ret;
 							char ackMsg[4] = "ACK";
+							client.sin_port = htons(ntohs(client.sin_port)-1);
+
 							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
 													(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));							if ( ret < 0){
 								perror("error while sending the message \n");
@@ -506,7 +503,8 @@ void *heartbeatThread(void *id){
 
 
 						curNode->statusServer = ELECTION_HAPPENING;
-						conductElection(curNode, curServer, ackServer);
+						cout<<"Entering election via heartbeatThread\n";
+						conductElection(curNode,heartBeatserver,ackServer);
 					}
 				}
 
@@ -545,7 +543,7 @@ void* heartbeatSend(void *id){
 		//double curTime = clock()/CLOCKS_PER_SEC;
 		while(it != curNode->mStatusmap.end()){
 
-				if((  start.tv_sec - it->second) >=20){
+				if((  start.tv_sec - it->second) >=10){
 					if(!curNode->bIsLeader){
 						if(curNode->statusServer != ELECTION_HAPPENING){
 
@@ -736,6 +734,7 @@ int main(int argc, char *argv[]) {
 
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
+
 		strcpy(curNode->lead.sIpAddress,userListMsg.leaderip);
 		curNode->lead.sPort = userListMsg.leaderPort;
 		strcpy(curNode->lead.sName ,userListMsg.leaderName);

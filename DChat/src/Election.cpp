@@ -27,6 +27,15 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	cout << curNode->listofUsers.size();
 	cout << curNode->listofSockets.size();
 #endif
+	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
+		USERINFO user;
+		user = *itr;
+		if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
+
+			curNode->listofUsers.erase(itr);
+			break;
+		}
+	}
 
 	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
 		struct UserInfo user = *itr;
@@ -52,6 +61,8 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			}
 		}
 	}
+	cout << "isHighest:"<<isHighest<<endl;
+	cout <<" numMsg Recevied:"<<numMsgReceived <<endl;
 	//TODO Declare Yourself as the leader
 	//Checking if the size of listofUsers = 2
 	if((curNode->listofUsers.size() == 1) || (isHighest == true) || (numMsgReceived == 0)){
@@ -64,21 +75,23 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			USERINFO user;
 
 			user = *itr;
-			if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
-				itr2 = itr;
-				//curNode->listofUsers.erase(itr);
-				//break;
-			}
-			else{
+//			if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
+//				itr2 = itr;
+//				//curNode->listofUsers.erase(itr);
+//				//break;
+//			}
+		/*	else*/	{
 				addSocket(user.ipaddress,atoi(user.portnum));
 				if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
 					sendLeaderMessage(curNode,curServer,ackServer,user);
 				}
 			}
 		}
-		curNode->listofUsers.erase(itr2);
+		//curNode->listofUsers.erase(itr2);
+
+		updateLeader(curNode);
 	}
-	updateLeader(curNode);
+
 
 	return ret;
 }
@@ -104,13 +117,15 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 
 	strcpy(msgTosend,to_string(MESSAGE_TYPE_ELECTION).c_str());
 	//Send Election Message to the Nodes with higher port numbers
-	int ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+
+	int ret = sendto(curServer->get_socket(),&msgTosend,sizeof(msgTosend),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 	if ( ret < 0){
 		perror("error while sending the message \n");
 	}
 
 	tv.tv_sec = 2;
 	if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+		cout<<"Error in this socket\n";
 		perror("Error while setting a time constraint on the socket");
 	}
 
@@ -121,7 +136,7 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
 			perror("Message being resent \n");
 
-			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(msgTosend),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 			if ( ret < 0){
 				//Declare that particular client as dead
 				perror("error while sending the message \n");
