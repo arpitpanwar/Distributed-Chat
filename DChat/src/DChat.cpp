@@ -475,7 +475,7 @@ void *heartbeatThread(void *id){
 			}
 		}else{
 				string received = recvBeat;
-				cout << received<<endl;
+//				cout << received<<endl;
 				if(received.compare(BEAT)==0){
 					timeval curr;
 					gettimeofday(&curr,NULL);
@@ -486,14 +486,15 @@ void *heartbeatThread(void *id){
 					curNode->mStatusmap[key] = curr.tv_sec;
 
 				}
-				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))){
+
+				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))== 0){
 
 					if(curNode->statusServer != ELECTION_HAPPENING){
 						{
 							int ret;
 							char ackMsg[4] = "ACK";
 							client.sin_port = htons(ntohs(client.sin_port)-1);
-
+							cout<<"Detected election from other client"<<endl;
 							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
 													(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));							if ( ret < 0){
 								perror("error while sending the message \n");

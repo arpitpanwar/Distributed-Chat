@@ -40,25 +40,23 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
 		struct UserInfo user = *itr;
 
-		if(curNode->portNum < atoi(user.portnum)){
-			isHighest = false;
-			numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
-			if(numMsgReceived)
-			break;
-		}
-		else if(curNode->portNum == atoi(user.portnum)){
-			//Check IP address here
-			isHighest = false;
-			vector<string> ip_user = split(user.ipaddress, '.');
-			vector<string> ip_curNode = split(curNode->ipAddress, '.');
+		if((strcmp((user.ipaddress),curNode->ipAddress)!= 0)
+			&& (atoi(user.portnum) == curNode->portNum)
+			&& (strcmp((user.username),curNode->sUserName)==0)){
 
-			//Comparing the two IP address starting from the last octet
-			for(int i=3; i>=0; i--){
-				if(ip_curNode[i] < ip_user[i]){
-					numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
-					break;
-				}
+			if(strcmp(curNode->rxBytes,user.rxBytes) < 0){
+				isHighest = false;
+				numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
+
+
 			}
+
+			else if(curNode->portNum < atoi(user.portnum)){
+				isHighest = false;
+				numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
+
+			}
+
 		}
 	}
 	cout << "isHighest:"<<isHighest<<endl;
@@ -75,21 +73,23 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			USERINFO user;
 
 			user = *itr;
-//			if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
-//				itr2 = itr;
-//				//curNode->listofUsers.erase(itr);
-//				//break;
-//			}
-		/*	else*/	{
-				addSocket(user.ipaddress,atoi(user.portnum));
-				if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
-					sendLeaderMessage(curNode,curServer,ackServer,user);
-				}
+			addSocket(user.ipaddress,atoi(user.portnum));
+			if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
+				sendLeaderMessage(curNode,curServer,ackServer,user);
 			}
+
 		}
-		//curNode->listofUsers.erase(itr2);
+
 
 		updateLeader(curNode);
+		curNode->statusServer = NORMAL_OPERATION;
+		{
+			MESSAGE leaderMsg;
+			string msg = "New Leader elected :" + string(curNode->sUserName);
+			strcpy(leaderMsg.sContent,msg.c_str());
+			leaderMsg.sType = MESSAGE_TYPE_CHAT;
+			curNode->consoleQueue.push(leaderMsg);
+		}
 	}
 
 
