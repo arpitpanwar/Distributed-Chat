@@ -155,8 +155,8 @@ void *recvMsg(void *id){
 			curNode->mStatusmap.clear();
 			curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 			curNode->listofSockets.clear();
-
-			for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
+			list<USERINFO> userList = curNode->getUserList();
+			for(itr = userList.begin(); itr != userList.end(); ++itr){
 				USERINFO user;
 
 				user = *itr;
@@ -166,6 +166,8 @@ void *recvMsg(void *id){
 				}
 
 			}
+			//delete &userList;
+
 			char portNum[PORT_BUFSIZE];
 			sscanf(portNum, "%d", &port);
 			memcpy(curNode->lead.sIpAddress,msg.sContent,IP_BUFSIZE);
@@ -238,8 +240,8 @@ void *sendMsg(void *id){
 			cout << "Send Message: Send Queue not empty\n";
 			cout << curSentmsg.message;
 #endif
-
-				for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
+				list<sockaddr_in> sockets = curNode->getSocketList();
+				for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
 					client = *iterator;
 
 					ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
@@ -283,6 +285,7 @@ void *sendMsg(void *id){
 					cout << msgTosend.sContent;
 #endif
 				}
+				//delete &sockets;
 
 		}
 
@@ -291,7 +294,8 @@ void *sendMsg(void *id){
 int populatelistofUsers(char *users){
 	USERINFO temp;
 	int countNum = 0;
-	for (list<USERINFO>::const_iterator iterator = curNode->listofUsers.begin(), end = curNode->listofUsers.end(); iterator != end; ++iterator) {
+	list<USERINFO> userList = curNode->getUserList();
+	for (list<USERINFO>::const_iterator iterator = userList.begin(), end = userList.end(); iterator != end; ++iterator) {
 		temp = *iterator;
 		memcpy(users,temp.ipaddress,IP_BUFSIZE);
 		memcpy(users+IP_BUFSIZE,temp.portnum,PORT_BUFSIZE);
@@ -300,6 +304,7 @@ int populatelistofUsers(char *users){
 		users+=IP_BUFSIZE + PORT_BUFSIZE+USERNAME_BUFSIZE+RXBYTE_BUFSIZE;
 		countNum ++;
 	}
+	//delete &userList;
 	return countNum;
 }
 
@@ -347,8 +352,8 @@ void sendlist(char *msg){
 	updateMsg.sType = MESSAGE_TYPE_UPDATE;
 	string cont = ip+string(":")+portNum+string(":")+username+string(":")+rxsize;
 	strcpy(updateMsg.sContent,cont.c_str());
-
-	for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
+	list<sockaddr_in> sockets = curNode->getSocketList();
+	for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
 		client = *iterator;
 
 		ret = sendto(curServer->get_socket(),&updateMsg,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
@@ -388,6 +393,7 @@ void sendlist(char *msg){
 			}
 		}
 	}
+	//delete &sockets;
 
 
 	addSocket(ip,port);
@@ -523,7 +529,8 @@ void* heartbeatSend(void *id){
 		struct timeval tv;
 		char sendBeat[16],recvBeat[16];
 		while(true){
-				for (std::list<sockaddr_in>::const_iterator iterator = curNode->listofSockets.begin(), end = curNode->listofSockets.end(); iterator != end; ++iterator) {
+				list<sockaddr_in> sockets = curNode->getSocketList();
+				for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
 					client = *iterator;
 					strcpy(sendBeat,BEAT);
 					sockaddr_in client;
@@ -537,7 +544,7 @@ void* heartbeatSend(void *id){
 					}
 
 				}
-
+		//delete &sockets;
 		map<string,double>::iterator it = curNode->mStatusmap.begin();
 		timeval start;
 		gettimeofday(&start,NULL);
@@ -558,7 +565,6 @@ void* heartbeatSend(void *id){
 				}
 				it++;
 		}
-
 		sleep(5);
 		}
 

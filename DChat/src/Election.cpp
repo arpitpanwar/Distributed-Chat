@@ -22,43 +22,47 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	list<UserInfo>::iterator itr,itr2;
 	bool isHighest = true;
 	int numMsgReceived = 0;
-
+	list<USERINFO> userList = curNode->getUserList();
 #ifdef DEBUG
 	cout << curNode->listofUsers.size();
 	cout << curNode->listofSockets.size();
 #endif
 	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
-		USERINFO user;
-		user = *itr;
+		struct UserInfo user = *itr;
+
 		if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
 
 			curNode->listofUsers.erase(itr);
+			//userList.erase(itr);
 			break;
 		}
 	}
 
-	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
+	userList = curNode->getUserList();
+
+	for(itr = userList.begin(); itr != userList.end(); ++itr){
 		struct UserInfo user = *itr;
 
-		if((strcmp((user.ipaddress),curNode->ipAddress)!= 0)
-			&& (atoi(user.portnum) == curNode->portNum)
-			&& (strcmp((user.username),curNode->sUserName)==0)){
+		if((atoi(user.portnum) != curNode->portNum)	| (strcmp((user.ipaddress),curNode->ipAddress)!= 0)){
 
 			if(strcmp(curNode->rxBytes,user.rxBytes) < 0){
 				isHighest = false;
 				numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
 
 
-			}
+			}else{
+				if(curNode->portNum < atoi(user.portnum)){
+					isHighest = false;
+					numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
 
-			else if(curNode->portNum < atoi(user.portnum)){
-				isHighest = false;
-				numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
-
+				}
 			}
 
 		}
 	}
+
+	//delete &userList;
+
 	cout << "isHighest:"<<isHighest<<endl;
 	cout <<" numMsg Recevied:"<<numMsgReceived <<endl;
 	//TODO Declare Yourself as the leader
@@ -69,7 +73,8 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		curNode->mStatusmap.clear();
 		curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 		curNode->listofSockets.clear();
-		for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
+		list<USERINFO> userList = curNode->getUserList();
+		for(itr = userList.begin(); itr != userList.end(); ++itr){
 			USERINFO user;
 
 			user = *itr;
@@ -83,13 +88,12 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 		updateLeader(curNode);
 		curNode->statusServer = NORMAL_OPERATION;
-		{
-			MESSAGE leaderMsg;
-			string msg = "New Leader elected :" + string(curNode->sUserName);
-			strcpy(leaderMsg.sContent,msg.c_str());
-			leaderMsg.sType = MESSAGE_TYPE_CHAT;
-			curNode->consoleQueue.push(leaderMsg);
-		}
+		MESSAGE leaderMsg;
+		string msg = "New Leader elected :" + string(curNode->sUserName);
+		strcpy(leaderMsg.sContent,msg.c_str());
+		leaderMsg.sType = MESSAGE_TYPE_CHAT;
+		curNode->consoleQueue.push(leaderMsg);
+
 	}
 
 

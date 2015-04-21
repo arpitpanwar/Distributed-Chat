@@ -48,6 +48,67 @@ typedef struct UserInfo{
 	char rxBytes[RXBYTE_BUFSIZE];
 }USERINFO;
 
+
+
+template <typename T>
+class PriorityBlockingQueue
+{
+ public:
+
+  T pop()
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    while (queue_.empty())
+    {
+      cond_.wait(mlock);
+    }
+    auto item = queue_.front();
+    queue_.pop();
+    mlock.unlock();
+
+    return item;
+  }
+
+  void pop(T& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    while (queue_.empty())
+    {
+      cond_.wait(mlock);
+    }
+    item = queue_.front();
+    queue_.pop();
+  }
+  bool empty()
+  {
+      return queue_.empty();
+  }
+
+  void push(const T& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    queue_.push(item);
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+  void push(T&& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    queue_.push(std::move(item));
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+ private:
+  std::priority_queue<T> queue_;
+  std::mutex mutex_;
+  std::condition_variable cond_;
+};
+
+
+
+
 template <typename T>
 class Queue
 {
@@ -115,6 +176,9 @@ public:
 	chat_node(char userName[],int entry,char ipaddr[] , int port  );
 
 	~chat_node();
+
+
+
 	bool bIsLeader;
 	int  statusServer;
 //	long lSequencenums;
@@ -135,6 +199,18 @@ public:
 	Queue<message> sendQueue;
 //	Queue<message> ackQueue;
 	Queue<string> printQueue;
+
+
+	list<USERINFO> getUserList(){
+			list<USERINFO> copyList(listofUsers.begin(),listofUsers.end());
+			return copyList;
+	}
+
+	list<sockaddr_in> getSocketList(){
+		list<sockaddr_in> copySockList(listofSockets.begin(),listofSockets.end());
+		return copySockList;
+	}
+
 };
 
 
