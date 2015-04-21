@@ -46,6 +46,12 @@ typedef struct UserInfo{
 	char portnum[PORT_BUFSIZE];
 	char username[USERNAME_BUFSIZE];
 	char rxBytes[RXBYTE_BUFSIZE];
+
+	bool operator == (const UserInfo &rhs)
+	{
+	    return ((strcmp(rhs.ipaddress,ipaddress)==0) && (strcmp(rhs.portnum,portnum)==0) && (strcmp(rhs.username,username)==0) && (strcmp(rhs.rxBytes,rxBytes)==0));
+	}
+
 }USERINFO;
 
 

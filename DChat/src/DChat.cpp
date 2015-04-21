@@ -121,14 +121,14 @@ void *recvMsg(void *id){
 		else{
 			client.sin_port = htons(ntohs(client.sin_port)-1);
 		}
-		{
+
 			ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
 					(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 			if ( ret < 0){
 				perror("error while sending the message \n");
 				continue;
 			}
-		}
+
 
 
 
@@ -181,11 +181,41 @@ void *recvMsg(void *id){
 
 			curNode->statusServer = NORMAL_OPERATION;
 
-		}
-		else{
+		}else{
 
-			curNode->holdbackQueue.push(msg);
+			if(msg.sType == MESSAGE_TYPE_REMOVE_USER){
 
+				if(!curNode->bIsLeader){
+					string content = msg.sContent;
+					vector<string> tokens = split(content,':');
+
+					list<USERINFO> userList = curNode->getUserList();
+					list<USERINFO>::iterator itr  = userList.begin();
+
+					while(itr!=userList.end()){
+						USERINFO user = *itr;
+
+						if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
+							curNode->listofUsers.remove(user);
+
+							break;
+						}
+						++itr;
+					}
+					map<string,string>::iterator it;
+
+					it =curNode->mClientmap.find(content);
+
+					if(it != curNode->mClientmap.end()){
+						curNode->mClientmap.erase(it);
+					}
+
+				}
+
+
+			}else{
+				curNode->holdbackQueue.push(msg);
+			}
 		}
 
 #ifdef PRINT
@@ -487,7 +517,7 @@ void *heartbeatThread(void *id){
 					gettimeofday(&curr,NULL);
 					string ip = string(inet_ntoa(client.sin_addr));
 					int port = ntohs(client.sin_port);
-					string key = ip+string(":")+to_string(port);
+					string key = ip+string(":")+to_string(port-2);
 
 					curNode->mStatusmap[key] = curr.tv_sec;
 
@@ -550,18 +580,80 @@ void* heartbeatSend(void *id){
 		gettimeofday(&start,NULL);
 		//double curTime = clock()/CLOCKS_PER_SEC;
 		while(it != curNode->mStatusmap.end()){
-
 				if((  start.tv_sec - it->second) >=10){
 					if(!curNode->bIsLeader){
 						if(curNode->statusServer != ELECTION_HAPPENING){
-
-
 							curNode->statusServer = ELECTION_HAPPENING;
 							conductElection(curNode,heartBeatserver,ackServer);
 						}
 
+					}else{
+						list<USERINFO> userList = curNode->getUserList();
+						list<USERINFO>::iterator itr = userList.begin();
+						MESSAGE removeMsg,removeChat;
+						string ipport = it->first;
+						map<string,string>::iterator mapIt = curNode->mClientmap.find(ipport);
+
+						if(mapIt!=curNode->mClientmap.end()){
+							curNode->mClientmap.erase(mapIt);
+							mapIt++;
+						}
+
+
+
+
+						list<sockaddr_in> sockets = curNode->getSocketList();
+						list<sockaddr_in>::iterator socketItr = sockets.begin();
+						vector<string> tokens = split(ipport,':');
+
+						while(socketItr!=sockets.end()){
+
+							sockaddr_in sock = *socketItr;
+
+							string ip = string(inet_ntoa(sock.sin_addr));
+							string port = to_string(ntohs(sock.sin_port));
+
+							if((strcmp(ip.c_str(),tokens[0].c_str())==0) & (strcmp(port.c_str(),tokens[1].c_str())==0)){
+									sockets.erase(socketItr);
+									break;
+							}
+							++socketItr;
+						}
+						curNode->listofSockets = sockets;
+
+						while(itr!=userList.end()){
+							USERINFO user = *itr;
+
+
+
+							if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
+								curNode->listofUsers.remove(user);
+
+								removeMsg.sType = MESSAGE_TYPE_REMOVE_USER;
+								strcpy(removeMsg.sContent,ipport.c_str());
+
+								string remove = "Notice "+string(user.username)+" left the group or crashed";
+								removeChat.sType=MESSAGE_TYPE_CHAT;
+								strcpy(removeChat.sContent,remove.c_str());
+
+								curNode->consoleQueue.push(removeMsg);
+								curNode->consoleQueue.push(removeChat);
+
+								break;
+							}
+
+							++itr;
+						}
+
+
+
+						map<string,double>::iterator statIt = curNode->mStatusmap.find(ipport);
+
+						if(statIt!=curNode->mStatusmap.end()){
+							curNode->mStatusmap.erase(statIt);
+							break;
+						}
 					}
-					//TODO To decide who should remove the users
 				}
 				it++;
 		}
