@@ -20,7 +20,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	int ret = 0 ;
 	int val;
 	//Check if your node has the highest port number.
-	list<UserInfo>::iterator itr,itr2;
+	list<UserInfo>::iterator itr;
 	bool isHighest = true;
 	int numMsgReceived = 0;
 	list<USERINFO> userList = curNode->getUserList();
@@ -34,7 +34,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
 
 			curNode->listofUsers.erase(itr);
-			//userList.erase(itr);
+
 			break;
 		}
 	}
@@ -131,10 +131,11 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 	}
 
 	tv.tv_sec = 2;
+	tv.tv_usec = 0;
 	if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-		cout<<"Error in this socket\n";
-		perror("Error while setting a time constraint on the socket");
+		perror("Error while setting a time constraint on the socket while sending Election message");
 	}
+
 
 	int timeout = 0;
 	struct sockaddr_in ackClient;
@@ -185,8 +186,9 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	}
 
 	tv.tv_sec = 2;
+	tv.tv_usec = 0;
 	if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-		perror("Error while setting a time constraint on the socket");
+		perror("Error while setting a time constraint on the socket while sending leader message");
 	}
 
 	int timeout = 0;
@@ -194,21 +196,19 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	char ackMsg[4];
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
-			perror("Message being resent \n");
-
+			perror("Leader Message  being resent,ACK not received \n");
 			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-			if ( ret < 0){
-				//Declare that particular client as dead
-				perror("error while sending the message \n");
-				continue;
-			}
 			timeout++;
 		}
 		else{
-			cout << "Acknowledgment received\n";
-
-			if(strcmp(ackMsg,"ACK")==0)
+			if(strcmp(ackMsg,"ACK")==0){
 				break;
+				cout << "Acknowledgment received\n";
+			}
+			else{
+				timeout++;
+			}
+
 		}
 	}
 
