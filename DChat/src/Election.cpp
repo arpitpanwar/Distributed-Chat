@@ -18,6 +18,7 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer){
 	cout << "Conducting Elections...\n";
 	int ret = 0 ;
+	int val;
 	//Check if your node has the highest port number.
 	list<UserInfo>::iterator itr,itr2;
 	bool isHighest = true;
@@ -47,7 +48,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 			if(strcmp(curNode->rxBytes,user.rxBytes) < 0){
 				isHighest = false;
-				numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
+				numMsgReceived =  sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
 
 
 			}else{
@@ -72,6 +73,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		cout << "I am the leader\n";
 		curNode->bIsLeader = true;
 		curNode->mStatusmap.clear();
+		curNode->lastSeqNum = 0;
 		curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 		curNode->listofSockets.clear();
 		list<USERINFO> userList = curNode->getUserList();

@@ -94,10 +94,10 @@ void *recvMsg(void *id){
 
 	int addr_len = sizeof(struct sockaddr);
 	int ret;
+	long lastSeqNum = 0;
 	while(true){
 		struct sockaddr_in client;
 		MESSAGE msg;
-		long timestamp;
 		char ack[4] ="ACK";
 
 #ifdef DEBUG
@@ -181,6 +181,10 @@ void *recvMsg(void *id){
 
 			curNode->statusServer = NORMAL_OPERATION;
 
+
+			lastSeqNum = 0;
+			curNode->lastSeqNum = 0 ;
+
 		}else{
 
 			if(msg.sType == MESSAGE_TYPE_REMOVE_USER){
@@ -214,7 +218,13 @@ void *recvMsg(void *id){
 
 
 			}else{
-				curNode->holdbackQueue.push(msg);
+				if(lastSeqNum!= msg.lSequenceNums){
+					if(lastSeqNum == 0 )
+						curNode->lastSeqNum = msg.lSequenceNums -1;
+
+					lastSeqNum = msg.lSequenceNums;
+					curNode->holdbackQueue.push(msg);
+				}
 			}
 		}
 
@@ -231,93 +241,106 @@ void *sendMsg(void *id){
 	struct sockaddr_in client;
 	int ret;
 	int addr_len = sizeof(struct sockaddr);
-	int seqNum = 0;
+	long seqNum = 0;
 	struct timeval tv;
-
+	int flag = 0;
 	while(true){
 
-			MESSAGE msgTosend;
-			char  ack[4];
+		MESSAGE msgTosend;
+		char  ack[4];
 
-				msgTosend = curNode->sendQueue.pop();
-//				strcpy(msgTosend.ackIp,curNode->ipAddress);
-//				msgTosend.ackPort = ackServer->get_portNum();
-				if(curNode->bIsLeader){
+		msgTosend = curNode->sendQueue.front();
 
-					seqNum++;
-					msgTosend.sType = MESSAGE_TYPE_CHAT;
-					string content = msgTosend.sContent;
+		if(curNode->bIsLeader){
+			if(flag == 0 )
+				seqNum++;
+			msgTosend.sType = MESSAGE_TYPE_CHAT;
+			string content = msgTosend.sContent;
+			list<USERINFO> users = curNode->listofUsers;
+			msgTosend.lSequenceNums = seqNum;
 
-					list<USERINFO> users = curNode->listofUsers;
+		}
+		else{
+			if(msgTosend.sType == MESSAGE_TYPE_STATUS_JOIN){
+				// This is to indicate the join message is coming from some other user and
+				///this message is forwarded to the sequencer.
+				msgTosend.sType = MESSAGE_TYPE_STATUS_JOIN;
+			}else{
+				msgTosend.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+			}
 
-
-
-					msgTosend.lSequenceNums = seqNum;
-				}
-				else{
-					if(msgTosend.sType == MESSAGE_TYPE_STATUS_JOIN){
-						// This is to indicate the join message is coming from some other user and
-						///this message is forwarded to the sequencer.
-						msgTosend.sType = MESSAGE_TYPE_STATUS_JOIN;
-					}else{
-						msgTosend.sType = MESSAGE_TYPE_CHAT_NOSEQ;
-					}
-
-				}
+		}
+		flag = 0;
 
 
 #ifdef DEBUG
-			cout << "Send Message: Send Queue not empty\n";
-			cout << curSentmsg.message;
+		cout << "Send Message: Send Queue not empty\n";
+		cout << curSentmsg.message;
 #endif
-				list<sockaddr_in> sockets = curNode->getSocketList();
-				for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
-					client = *iterator;
+		list<sockaddr_in> sockets = curNode->getSocketList();
+		for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
+			client = *iterator;
 
-					ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-					if ( ret < 0){
-						perror("error while sending the message \n");
-						continue;
-					}
+			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+			if ( ret < 0){
+				perror("error while sending the message \n");
+				continue;
+			}
 
-					tv.tv_sec = 2;
-					if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-					    perror("Error while setting a time constraint on the socket");
-					}
-					{
-						int timeout = 0;
-						struct sockaddr_in ackClient;
-						char ackMsg[4];
-						while(timeout < 2){
-							if(ackServer->get_message(ackClient,ackMsg,sizeof(ack))<0){
-								perror("Message being resent \n");
+			tv.tv_sec = 2;
+			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+				perror("Error while setting a time constraint on the socket");
+			}
+			{
+				int timeout = 0;
+				struct sockaddr_in ackClient;
+				char ackMsg[4];
+				while(timeout < 2){
+					if(ackServer->get_message(ackClient,ackMsg,sizeof(ack))<0){
+						perror("Message being resent  \n");
 
 
-								ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-								if ( ret < 0){
+						ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+						if ( ret < 0){
 
-									//Declare that particular client as dead
-									perror("error while sending the message \n");
-									continue;
-								}
+							//Declare that particular client as dead
+							perror("error while sending the message \n");
+							continue;
+						}
 
-								timeout++;
-							}
-							else{
+						timeout++;
 
-								if(strcmp(ackMsg,"ACK")==0)
-									break;
-							}
+						if(timeout==2){
+
+							flag = 1;
 						}
 					}
-#ifdef PRINT
-					cout << "\nMessage being Sent :: ";
-					cout << msgTosend.sContent;
-#endif
-				}
-				//delete &sockets;
+					else{
 
+						if(strcmp(ackMsg,"ACK")==0)
+							break;
+						else{
+							timeout++;
+							if(timeout==2){
+
+								flag = 1;
+							}
+						}
+
+					}
+				}
+			}
+#ifdef PRINT
+			cout << "\nMessage being Sent :: ";
+			cout << msgTosend.sContent;
+#endif
 		}
+
+		if(flag == 0 ){
+		//	cout<<"\nMessage being popped"<<msgTosend.sContent<<endl;
+			curNode->sendQueue.pop();
+		}
+	}
 
 }
 
@@ -666,12 +689,18 @@ void *holdbackThread(void *id){
 	string printMsg;
 	while (true){
 
-			MESSAGE curMsg;
-			curMsg = curNode->holdbackQueue.pop();
+		MESSAGE curMsg;
+		curMsg = curNode->holdbackQueue.front();
 
-
+		if(curMsg.lSequenceNums == (curNode->lastSeqNum + 1)){
+			curNode->holdbackQueue.pop();
+			curNode->lastSeqNum = curMsg.lSequenceNums;
 			printMsg = string(curMsg.sContent);
 			curNode->printQueue.push(printMsg);
+		}
+
+
+
 
 	}
 
@@ -767,7 +796,7 @@ int main(int argc, char *argv[]) {
 	curServer = new udp_Server(ipaddress,portNum);
 	ackServer = new udp_Server(ipaddress,portNum+1);
 	heartBeatserver = new udp_Server(ipaddress,portNum+2);
-	curNode = new chat_node(username,entry,ipaddress,portNum);
+	curNode = new chat_node(username,entry,ipaddress,portNum,0);
 
 	if(isSeq){
 		strcpy(curNode->rxBytes,rxsize);

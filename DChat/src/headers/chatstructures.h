@@ -16,8 +16,14 @@ typedef struct message{
 
 	char sContent[MESSAGE_SIZE];
 	int sType;
-	int lSequenceNums;
+	long lSequenceNums;
 	int timestamp;
+
+	bool operator < (const message &rhs)const
+	{
+	    return rhs.lSequenceNums < lSequenceNums;
+	}
+
 
 }MESSAGE;
 
@@ -68,12 +74,25 @@ class PriorityBlockingQueue
     {
       cond_.wait(mlock);
     }
-    auto item = queue_.front();
+    auto item = queue_.top();
     queue_.pop();
     mlock.unlock();
 
     return item;
   }
+
+  T front(){
+	  std::unique_lock<std::mutex> mlock(mutex_);
+	  while (queue_.empty())
+	  {
+		  cond_.wait(mlock);
+	  }
+	  auto item = queue_.top();
+	  mlock.unlock();
+
+	  return item;
+  }
+
 
   void pop(T& item)
   {
@@ -134,6 +153,18 @@ class Queue
     return item;
   }
 
+  T front(){
+	  std::unique_lock<std::mutex> mlock(mutex_);
+	  while (queue_.empty())
+	  {
+		  cond_.wait(mlock);
+	  }
+	  auto item = queue_.front();
+	  mlock.unlock();
+
+	  return item;
+  }
+
   void pop(T& item)
   {
     std::unique_lock<std::mutex> mlock(mutex_);
@@ -179,7 +210,7 @@ string getRxBytes();
 class chat_node{
 
 public:
-	chat_node(char userName[],int entry,char ipaddr[] , int port  );
+	chat_node(char userName[],int entry,char ipaddr[] , int port, long lastSeqNum );
 
 	~chat_node();
 
@@ -187,7 +218,7 @@ public:
 
 	bool bIsLeader;
 	int  statusServer;
-//	long lSequencenums;
+	long lastSeqNum;
 	int entryNum;
 	char ipAddress[IP_BUFSIZE];
 	char sUserName[USERNAME_BUFSIZE];
@@ -198,12 +229,9 @@ public:
 	map<string,string> mClientmap;
 	map<string,double> mStatusmap;
 	list<sockaddr_in> listofSockets;
-	Queue<message> holdbackQueue;
-//	Queue<message> chatQueue;
-//	Queue<message> statusQueue;
-	Queue<message> consoleQueue;
-	Queue<message> sendQueue;
-//	Queue<message> ackQueue;
+	PriorityBlockingQueue<MESSAGE> holdbackQueue;
+	Queue<MESSAGE> consoleQueue;
+	Queue<MESSAGE> sendQueue;
 	Queue<string> printQueue;
 
 
