@@ -218,6 +218,7 @@ public:
 
 	bool bIsLeader;
 	int  statusServer;
+	int electionstatus;
 	long lastSeqNum;
 	int entryNum;
 	char ipAddress[IP_BUFSIZE];

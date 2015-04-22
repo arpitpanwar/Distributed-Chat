@@ -43,8 +43,8 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 	for(itr = userList.begin(); itr != userList.end(); ++itr){
 		struct UserInfo user = *itr;
-
-		if((atoi(user.portnum) != curNode->portNum)	| (strcmp((user.ipaddress),curNode->ipAddress)!= 0)){
+	//	cout<<"User send election message"<<user.portnum<<endl;
+		if((atoi(user.portnum) != curNode->portNum)	|| (strcmp((user.ipaddress),curNode->ipAddress)!= 0)){
 
 			if(strcmp(curNode->rxBytes,user.rxBytes) < 0){
 				isHighest = false;
@@ -83,6 +83,8 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			user = *itr;
 			addSocket(user.ipaddress,atoi(user.portnum));
 			if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
+				cout << "message being sent to :"<<user.username<<endl;
+
 				sendLeaderMessage(curNode,curServer,ackServer,user);
 			}
 
@@ -153,10 +155,16 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 			timeout++;
 		}
 		else{
-			cout << "Acknowledgment received\n";
-			numMsgReceived++;
-			if(strcmp(ackMsg,"ACK")==0)
+
+			if(strcmp(ackMsg,"ACK")==0){
+				cout << "Acknowledgment received\n";
+				cout<< "ACK client : "<< htons(client.sin_port)<<endl;
+				numMsgReceived++;
 				break;
+			}else{
+				timeout++;
+			}
+
 		}
 	}
 	return numMsgReceived;
@@ -202,8 +210,9 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 		}
 		else{
 			if(strcmp(ackMsg,"ACK")==0){
+				cout << "Leader Acknowledgment received\n";
 				break;
-				cout << "Acknowledgment received\n";
+
 			}
 			else{
 				timeout++;

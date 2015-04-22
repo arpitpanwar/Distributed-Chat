@@ -191,7 +191,7 @@ void *recvMsg(void *id){
 
 				if(!curNode->bIsLeader){
 					string content = msg.sContent;
-					cout<<"Content is "<<content<<endl;
+				//	cout<<"Content is "<<content<<endl;
 					vector<string> tokens = split(content,':');
 
 					list<USERINFO> userList = curNode->getUserList();
@@ -257,7 +257,9 @@ void *sendMsg(void *id){
 		if(curNode->bIsLeader){
 			if((flag == 0) ||(firstTime ==1))
 				seqNum++;
-			msgTosend.sType = MESSAGE_TYPE_CHAT;
+			if(msgTosend.sType!=MESSAGE_TYPE_REMOVE_USER)
+				msgTosend.sType = MESSAGE_TYPE_CHAT;
+
 			string content = msgTosend.sContent;
 			list<USERINFO> users = curNode->listofUsers;
 			msgTosend.lSequenceNums = seqNum;
@@ -546,8 +548,8 @@ void *heartbeatThread(void *id){
 
 				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))== 0){
 
-					if(curNode->statusServer != ELECTION_HAPPENING){
-						{
+					if(curNode->electionstatus == ELECTION_STARTED_BY_ME){
+
 							int ret;
 							char ackMsg[4] = "ACK";
 							client.sin_port = htons(ntohs(client.sin_port)-1);
@@ -555,12 +557,22 @@ void *heartbeatThread(void *id){
 							cout<<"Detected election from other client"<<endl;
 							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
 									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+					}else{
+						if(curNode->statusServer!=ELECTION_HAPPENING && (!curNode->bIsLeader)){
+							int ret;
+							char ackMsg[4] = "ACK";
+							client.sin_port = htons(ntohs(client.sin_port)-1);
+
+							cout<<"Detected election from other client port num"<<htons(client.sin_port)<<endl;
+							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
+									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+
+							curNode->statusServer = ELECTION_HAPPENING;
+							curNode->electionstatus = ELECTION_STARTED_BY_ME;
+							cout<<"Entering election via heartbeatThread\n";
+							conductElection(curNode,heartBeatserver,ackServer);
+							curNode->electionstatus = NORMAL_OPERATION;
 						}
-
-
-						curNode->statusServer = ELECTION_HAPPENING;
-						cout<<"Entering election via heartbeatThread\n";
-						conductElection(curNode,heartBeatserver,ackServer);
 					}
 				}
 
@@ -601,9 +613,11 @@ void* heartbeatSend(void *id){
 		while(it != curNode->mStatusmap.end()){
 				if((  start.tv_sec - it->second) >=10){
 					if(!curNode->bIsLeader){
-						if(curNode->statusServer != ELECTION_HAPPENING){
+						if((curNode->statusServer != ELECTION_HAPPENING) && (curNode->electionstatus != ELECTION_STARTED_BY_ME)){
 							curNode->statusServer = ELECTION_HAPPENING;
+							curNode->electionstatus = ELECTION_STARTED_BY_ME;
 							conductElection(curNode,heartBeatserver,ackServer);
+							curNode->electionstatus = NORMAL_OPERATION;
 						}
 
 					}else{
