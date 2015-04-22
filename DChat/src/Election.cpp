@@ -51,10 +51,11 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 
 			}else{
-				if(curNode->portNum < atoi(user.portnum)){
-					isHighest = false;
-					numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
-
+				if(strcmp(curNode->rxBytes,user.rxBytes) == 0){
+					if(curNode->portNum < atoi(user.portnum)){
+						isHighest = false;
+						numMsgReceived = sendElectionMessage(curNode, curServer, ackServer, user, numMsgReceived);
+					}
 				}
 			}
 
