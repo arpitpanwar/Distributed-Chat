@@ -191,6 +191,7 @@ void *recvMsg(void *id){
 
 				if(!curNode->bIsLeader){
 					string content = msg.sContent;
+					cout<<"Content is "<<content<<endl;
 					vector<string> tokens = split(content,':');
 
 					list<USERINFO> userList = curNode->getUserList();
@@ -619,11 +620,7 @@ void* heartbeatSend(void *id){
 
 						if(mapIt!=curNode->mClientmap.end()){
 							curNode->mClientmap.erase(mapIt);
-							mapIt++;
 						}
-
-
-
 
 						list<sockaddr_in> sockets = curNode->getSocketList();
 						list<sockaddr_in>::iterator socketItr = sockets.begin();
@@ -646,20 +643,17 @@ void* heartbeatSend(void *id){
 
 						while(itr!=userList.end()){
 							USERINFO user = *itr;
-
-
-
 							if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
 								curNode->listofUsers.remove(user);
 
 								removeMsg.sType = MESSAGE_TYPE_REMOVE_USER;
-								strcpy(removeMsg.sContent,ipport.c_str());
+								strcpy(removeMsg.sContent,it->first.c_str());
+								curNode->consoleQueue.push(removeMsg);
 
 								string remove = "Notice "+string(user.username)+" left the group or crashed";
 								removeChat.sType=MESSAGE_TYPE_CHAT;
 								strcpy(removeChat.sContent,remove.c_str());
 
-								curNode->consoleQueue.push(removeMsg);
 								curNode->consoleQueue.push(removeChat);
 
 								break;
