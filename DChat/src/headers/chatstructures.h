@@ -37,6 +37,7 @@ typedef struct ListMessage{
 	int numUsers;
 	char leaderip[IP_BUFSIZE];
 	int  leaderPort;
+	long MaxSeqNum;
 	char listUsers[MESSAGE_SIZE];
 	char leaderName[USERNAME_BUFSIZE];
 }LISTMSG;
@@ -220,6 +221,7 @@ public:
 	int  statusServer;
 	int electionstatus;
 	long lastSeqNum;
+	long maxSeqNumseen;
 	int entryNum;
 	char ipAddress[IP_BUFSIZE];
 	char sUserName[USERNAME_BUFSIZE];

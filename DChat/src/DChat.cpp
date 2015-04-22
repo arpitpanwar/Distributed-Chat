@@ -98,7 +98,7 @@ void *recvMsg(void *id){
 	while(true){
 		struct sockaddr_in client;
 		MESSAGE msg;
-		char ack[4] ="ACK";
+		char ack[ACK_MSGSIZE];
 
 #ifdef DEBUG
 		cout << "Receive Message thread entered \n";
@@ -107,9 +107,16 @@ void *recvMsg(void *id){
 		ret = recvfrom(curServer->get_socket(),&msg,sizeof(MESSAGE),0,
 				(struct sockaddr *)&client,(socklen_t*)&addr_len);
 		if (ret < 0){
-			perror("error while sending the message \n");
+			perror("error while Recv. the message \n");
 			//continue;
 		}
+
+//		{
+//			cout<< "Message Received:"<<msg.sContent<<endl;
+//			cout<<" Message Sequence Num : "<<msg.lSequenceNums<<endl;
+//			cout<<" Message Local Last Seen :"<<lastSeqNum<<endl;
+//			cout<<" Last Seq Num :"<<curNode->lastSeqNum<<endl;
+//		}
 
 		string ip = string(inet_ntoa(client.sin_addr));
 		int port = ntohs(client.sin_port);
@@ -117,8 +124,16 @@ void *recvMsg(void *id){
 		if((msg.sType != MESSAGE_TYPE_ELECTION) && (msg.sType != MESSAGE_TYPE_LEADER)){
 
 		client.sin_port = htons(ntohs(client.sin_port)+1);
+		strcpy(ack,"ACK");
 		}
 		else{
+			if(msg.sType == MESSAGE_TYPE_ELECTION){
+				strcpy(ack,"ACKELECTION");
+			}
+			else
+			{
+				strcpy(ack,to_string(curNode->maxSeqNumseen).c_str());
+			}
 			client.sin_port = htons(ntohs(client.sin_port)-1);
 		}
 
@@ -183,7 +198,7 @@ void *recvMsg(void *id){
 
 
 			lastSeqNum = 0;
-			curNode->lastSeqNum = 0 ;
+
 
 		}else{
 
@@ -219,10 +234,10 @@ void *recvMsg(void *id){
 
 
 			}else{
-				//if(lastSeqNum!= msg.lSequenceNums)
+				if(lastSeqNum!= msg.lSequenceNums)
 				{
-					if(lastSeqNum == 0 )
-						curNode->lastSeqNum = msg.lSequenceNums -1;
+					if(curNode->maxSeqNumseen < msg.lSequenceNums)
+						curNode->maxSeqNumseen = msg.lSequenceNums;
 
 					lastSeqNum = msg.lSequenceNums;
 					curNode->holdbackQueue.push(msg);
@@ -250,20 +265,27 @@ void *sendMsg(void *id){
 	while(true){
 
 		MESSAGE msgTosend;
-		char  ack[4];
+		char  ack[ACK_MSGSIZE];
 
 		msgTosend = curNode->sendQueue.front();
 
-		if(curNode->bIsLeader){
-			if((flag == 0) ||(firstTime ==1))
-				seqNum++;
+		if(curNode->statusServer == NORMAL_OPERATION){
+			if(curNode->bIsLeader){
+
+				if(firstTime == 0 ){
+					seqNum = curNode->lastSeqNum;
+					firstTime = 1;
+				}
+
+				if((flag == 0 ) && (msgTosend.sType!=MESSAGE_TYPE_REMOVE_USER))
+					seqNum++;
 			if(msgTosend.sType!=MESSAGE_TYPE_REMOVE_USER)
 				msgTosend.sType = MESSAGE_TYPE_CHAT;
 
 			string content = msgTosend.sContent;
 			list<USERINFO> users = curNode->listofUsers;
 			msgTosend.lSequenceNums = seqNum;
-			firstTime = 1;
+
 
 		}
 		else{
@@ -287,15 +309,7 @@ void *sendMsg(void *id){
 		for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
 			client = *iterator;
 
-			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-			if ( ret < 0){
-				perror("error while sending the message \n");
-				continue;
-			}
-			{
-//				cout<<"Message sent to with ret value :"<<ret<<endl;
-//				cout<<"client port number : "<<ntohs(client.sin_port)<<endl;
-			}
+				ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 
 			tv.tv_sec = 2;
 			tv.tv_usec = 0;
@@ -307,7 +321,7 @@ void *sendMsg(void *id){
 				struct sockaddr_in ackClient;
 
 				while(timeout < 2){
-					char ackMsg[4];
+						char ackMsg[ACK_MSGSIZE];
 					int ret;
 					ret = recvfrom(ackServer->get_socket(),ackMsg,sizeof(ackMsg), 0, (struct sockaddr *) &ackClient, (socklen_t *)&addr_len);
 
@@ -320,10 +334,7 @@ void *sendMsg(void *id){
 						}
 					}
 					else{
-						{
-						//	cout<<"Message received to with ret value :"<<ret<<endl;
-							//cout<<"Ack client port number : "<<ntohs(ackClient.sin_port)<<endl;
-						}
+
 						if(strcmp(ackMsg,"ACK")==0)
 							break;
 						else{
@@ -343,13 +354,12 @@ void *sendMsg(void *id){
 		}
 
 		if(flag == 0 ){
-//			cout<<"\nMessage being popped"<<msgTosend.sContent<<endl;
 			curNode->sendQueue.pop();
 		}
 	}
 
 }
-
+}
 int populatelistofUsers(char *users){
 	USERINFO temp;
 	int countNum = 0;
@@ -379,7 +389,7 @@ void sendlist(char *msg){
 	MESSAGE updateMsg;
 	struct sockaddr_in client;
 	struct timeval tv;
-	char  ack[4];
+	char  ack[ACK_MSGSIZE];
 
 	memcpy(ip,msg,IP_BUFSIZE);
 	memcpy(portNum,msg+IP_BUFSIZE,PORT_BUFSIZE);
@@ -399,6 +409,7 @@ void sendlist(char *msg){
 	msgTosend.leaderPort = curNode->lead.sPort;
 	strcpy(msgTosend.leaderip,curNode->lead.sIpAddress);
 	msgTosend.numUsers = num;
+	msgTosend.MaxSeqNum = curNode->maxSeqNumseen;
 	strcpy(msgTosend.leaderName,curNode->lead.sName);
 
 
@@ -429,7 +440,7 @@ void sendlist(char *msg){
 		{
 			int timeout = 0;
 			struct sockaddr_in ackClient;
-			char ackMsg[4];
+			char ackMsg[ACK_MSGSIZE];
 			while(timeout < 2){
 				if(ackServer->get_message(ackClient,ackMsg,sizeof(ack))<0){
 					perror("Message being resent \n");
@@ -548,10 +559,10 @@ void *heartbeatThread(void *id){
 
 				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))== 0){
 
-					if(curNode->electionstatus == ELECTION_STARTED_BY_ME){
+					if(curNode->statusServer != ELECTION_HAPPENING){
 
 							int ret;
-							char ackMsg[4] = "ACK";
+							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
 							client.sin_port = htons(ntohs(client.sin_port)-1);
 
 							cout<<"Detected election from other client"<<endl;
@@ -572,6 +583,8 @@ void *heartbeatThread(void *id){
 							cout<<"Entering election via heartbeatThread\n";
 							conductElection(curNode,heartBeatserver,ackServer);
 							curNode->electionstatus = NORMAL_OPERATION;
+							if(curNode->bIsLeader)
+								curNode->statusServer = NORMAL_OPERATION;
 						}
 					}
 				}
@@ -618,6 +631,8 @@ void* heartbeatSend(void *id){
 							curNode->electionstatus = ELECTION_STARTED_BY_ME;
 							conductElection(curNode,heartBeatserver,ackServer);
 							curNode->electionstatus = NORMAL_OPERATION;
+							if(curNode->bIsLeader)
+								curNode->statusServer = NORMAL_OPERATION;
 						}
 
 					}else{
@@ -695,7 +710,7 @@ void *holdbackThread(void *id){
 		MESSAGE curMsg;
 		curMsg = curNode->holdbackQueue.front();
 
-	//	if(curMsg.lSequenceNums == (curNode->lastSeqNum + 1))
+		if(curMsg.lSequenceNums == (curNode->lastSeqNum + 1))
 		{
 			curNode->holdbackQueue.pop();
 			curNode->lastSeqNum = curMsg.lSequenceNums;
@@ -809,11 +824,13 @@ int main(int argc, char *argv[]) {
 		addSocket(ipaddress,portNum);
 		populateLeader(&curNode->lead,ipaddress,portNum,username);
 		curNode->bIsLeader =true;
+		curNode->maxSeqNumseen = 0;
 	}
 	else{
 		strcpy(curNode->rxBytes,rxsize);
 		curNode->statusServer = NORMAL_OPERATION;
 		curNode->bIsLeader = false;
+		curNode->maxSeqNumseen = 0;
 		MESSAGE joinMsg;
 		LISTMSG userListMsg;
 		struct sockaddr_in seqClient;
@@ -856,7 +873,7 @@ int main(int argc, char *argv[]) {
 			perror("error while sending the message \n");
 			//continue;
 		}
-		char ack[4];
+		char ack[ACK_MSGSIZE];
 		seqClient.sin_port = htons(ntohs(seqClient.sin_port )+1);
 		ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
 						(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
@@ -866,7 +883,7 @@ int main(int argc, char *argv[]) {
 
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
-
+		curNode->lastSeqNum = userListMsg.MaxSeqNum;
 		strcpy(curNode->lead.sIpAddress,userListMsg.leaderip);
 		curNode->lead.sPort = userListMsg.leaderPort;
 		strcpy(curNode->lead.sName ,userListMsg.leaderName);
@@ -878,11 +895,16 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-
+	//int cnt = 0;
 	while(true){
 		MESSAGE curMsg;
 		string inpString;
+
+	//	sleep(1);
+	//	inpString = string(username) + ":" + to_string(cnt);
+	//	cnt++;
 		getline(cin,inpString);
+
 
 		if(inpString.size() >= MESSAGE_SIZE){
 			cout<<INVALID_MESSAGE_SIZE<<endl;

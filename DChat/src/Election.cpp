@@ -10,7 +10,7 @@
 #include <string.h>
 #include <sstream>
 #include <arpa/inet.h>
-void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user);
+long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user);
 
 vector<string> split(string s, char delim);
 int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user, int numMsgReceived);
@@ -43,7 +43,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 	for(itr = userList.begin(); itr != userList.end(); ++itr){
 		struct UserInfo user = *itr;
-	//	cout<<"User send election message"<<user.portnum<<endl;
+
 		if((atoi(user.portnum) != curNode->portNum)	|| (strcmp((user.ipaddress),curNode->ipAddress)!= 0)){
 
 			if(strcmp(curNode->rxBytes,user.rxBytes) < 0){
@@ -70,10 +70,11 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	//TODO Declare Yourself as the leader
 	//Checking if the size of listofUsers = 2
 	if((curNode->listofUsers.size() == 1) || (isHighest == true) || (numMsgReceived == 0)){
+		long seqNumRet;
 		cout << "I am the leader\n";
 		curNode->bIsLeader = true;
 		curNode->mStatusmap.clear();
-		curNode->lastSeqNum = 0;
+
 		curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 		curNode->listofSockets.clear();
 		list<USERINFO> userList = curNode->getUserList();
@@ -83,16 +84,17 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			user = *itr;
 			addSocket(user.ipaddress,atoi(user.portnum));
 			if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
-				cout << "message being sent to :"<<user.username<<endl;
-
-				sendLeaderMessage(curNode,curServer,ackServer,user);
+				seqNumRet =	sendLeaderMessage(curNode,curServer,ackServer,user);
+				if(seqNumRet > curNode->maxSeqNumseen){
+					curNode->maxSeqNumseen = seqNumRet;
+				}
 			}
 
 		}
 
 
 		updateLeader(curNode);
-		curNode->statusServer = NORMAL_OPERATION;
+		//curNode->statusServer = NORMAL_OPERATION;
 		MESSAGE leaderMsg;
 		string msg = "New Leader elected :" + string(curNode->sUserName);
 		strcpy(leaderMsg.sContent,msg.c_str());
@@ -141,7 +143,7 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 
 	int timeout = 0;
 	struct sockaddr_in ackClient;
-	char ackMsg[4];
+	char ackMsg[ACK_MSGSIZE];
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
 			perror("Message being resent \n");
@@ -155,23 +157,22 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 			timeout++;
 		}
 		else{
-
-			if(strcmp(ackMsg,"ACK")==0){
-				cout << "Acknowledgment received\n";
-				cout<< "ACK client : "<< htons(client.sin_port)<<endl;
-				numMsgReceived++;
+			
+			if(strcmp(ackMsg,"ACKELECTION")==0){
+			cout << "Acknowledgment received\n";
+			numMsgReceived++;
 				break;
 			}else{
-				timeout++;
+			timeout++;
 			}
-
+			
 		}
 	}
 	return numMsgReceived;
 }
 
-void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user){
-	//Setting up Client
+long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user){
+	long seqNum;
 	struct sockaddr_in client;
 	client.sin_addr.s_addr = inet_addr(user.ipaddress);
 	client.sin_family = AF_INET;
@@ -201,7 +202,7 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 
 	int timeout = 0;
 	struct sockaddr_in ackClient;
-	char ackMsg[4];
+	char ackMsg[ACK_MSGSIZE];
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
 			perror("Leader Message  being resent,ACK not received \n");
@@ -209,16 +210,12 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 			timeout++;
 		}
 		else{
-			if(strcmp(ackMsg,"ACK")==0){
-				cout << "Leader Acknowledgment received\n";
-				break;
-
-			}
-			else{
-				timeout++;
-			}
-
+			seqNum = atol(ackMsg);
+			return seqNum;
 		}
+	}
+	if(timeout == 2){
+		return -1;
 	}
 
 }
