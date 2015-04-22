@@ -51,7 +51,7 @@ void addUser(char ipaddress[],int portNum,char username[]){
 }
 
 void addSocket(char ipaddress[], int portNum){
-
+	//cout << "\nAdding socket list "<<portNum<<endl;
 	struct sockaddr_in client;
 	client.sin_addr.s_addr = inet_addr(ipaddress);
 	client.sin_family = AF_INET;
@@ -114,7 +114,7 @@ void *recvMsg(void *id){
 		string ip = string(inet_ntoa(client.sin_addr));
 		int port = ntohs(client.sin_port);
 
-		if(msg.sType != MESSAGE_TYPE_ELECTION){
+		if((msg.sType != MESSAGE_TYPE_ELECTION) && (msg.sType != MESSAGE_TYPE_LEADER)){
 
 		client.sin_port = htons(ntohs(client.sin_port)+1);
 		}
@@ -218,7 +218,8 @@ void *recvMsg(void *id){
 
 
 			}else{
-				if(lastSeqNum!= msg.lSequenceNums){
+				//if(lastSeqNum!= msg.lSequenceNums)
+				{
 					if(lastSeqNum == 0 )
 						curNode->lastSeqNum = msg.lSequenceNums -1;
 
@@ -244,6 +245,7 @@ void *sendMsg(void *id){
 	long seqNum = 0;
 	struct timeval tv;
 	int flag = 0;
+	int firstTime = 0;
 	while(true){
 
 		MESSAGE msgTosend;
@@ -252,12 +254,13 @@ void *sendMsg(void *id){
 		msgTosend = curNode->sendQueue.front();
 
 		if(curNode->bIsLeader){
-			if(flag == 0 )
+			if((flag == 0) ||(firstTime ==1))
 				seqNum++;
 			msgTosend.sType = MESSAGE_TYPE_CHAT;
 			string content = msgTosend.sContent;
 			list<USERINFO> users = curNode->listofUsers;
 			msgTosend.lSequenceNums = seqNum;
+			firstTime = 1;
 
 		}
 		else{
@@ -286,43 +289,43 @@ void *sendMsg(void *id){
 				perror("error while sending the message \n");
 				continue;
 			}
+			{
+//				cout<<"Message sent to with ret value :"<<ret<<endl;
+//				cout<<"client port number : "<<ntohs(client.sin_port)<<endl;
+			}
 
 			tv.tv_sec = 2;
+			tv.tv_usec = 0;
 			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
 				perror("Error while setting a time constraint on the socket");
 			}
 			{
 				int timeout = 0;
 				struct sockaddr_in ackClient;
-				char ackMsg[4];
+
 				while(timeout < 2){
-					if(ackServer->get_message(ackClient,ackMsg,sizeof(ack))<0){
-						perror("Message being resent  \n");
+					char ackMsg[4];
+					int ret;
+					ret = recvfrom(ackServer->get_socket(),ackMsg,sizeof(ackMsg), 0, (struct sockaddr *) &ackClient, (socklen_t *)&addr_len);
 
-
+					if(ret<0){
+						//	perror("Message being resent  \n");
 						ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-						if ( ret < 0){
-
-							//Declare that particular client as dead
-							perror("error while sending the message \n");
-							continue;
-						}
-
 						timeout++;
-
 						if(timeout==2){
-
 							flag = 1;
 						}
 					}
 					else{
-
+						{
+						//	cout<<"Message received to with ret value :"<<ret<<endl;
+							//cout<<"Ack client port number : "<<ntohs(ackClient.sin_port)<<endl;
+						}
 						if(strcmp(ackMsg,"ACK")==0)
 							break;
 						else{
 							timeout++;
 							if(timeout==2){
-
 								flag = 1;
 							}
 						}
@@ -337,7 +340,7 @@ void *sendMsg(void *id){
 		}
 
 		if(flag == 0 ){
-		//	cout<<"\nMessage being popped"<<msgTosend.sContent<<endl;
+//			cout<<"\nMessage being popped"<<msgTosend.sContent<<endl;
 			curNode->sendQueue.pop();
 		}
 	}
@@ -416,6 +419,7 @@ void sendlist(char *msg){
 		}
 
 		tv.tv_sec = 2;
+		tv.tv_usec = 0;
 		if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
 		    perror("Error while setting a time constraint on the socket");
 		}
@@ -513,28 +517,21 @@ void *heartbeatThread(void *id){
 	timeval start , end;
 
 	tv.tv_sec = 2;
+	tv.tv_usec = 0;
 	gettimeofday(&start,NULL);
 	while(true){
 
-	//	if (setsockopt(heartBeatserver->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-	//		perror("Error while setting the timer for the heartbeat signal\n");
-	//	}
+
 		char recvBeat[16];
 		int ret = recvfrom(heartBeatserver->get_socket(),&recvBeat,sizeof(recvBeat),0,(struct sockaddr *)&client,(socklen_t*)&addr_len);
 
 		if(ret<0){
 			gettimeofday(&end,NULL);
-			if((start.tv_sec-end.tv_sec)/CLOCKS_PER_SEC>=10){
-
-				// int rc = pthread_create(&sendThread, NULL, heartbeatSend, (void *)NULL);
-				// if (rc){
-				  //      perror("Error creating thread");
-				 // }
+			if((start.tv_sec-end.tv_sec)/CLOCKS_PER_SEC>=2){
 				gettimeofday(&start,NULL);
 			}
 		}else{
 				string received = recvBeat;
-//				cout << received<<endl;
 				if(received.compare(BEAT)==0){
 					timeval curr;
 					gettimeofday(&curr,NULL);
@@ -553,12 +550,10 @@ void *heartbeatThread(void *id){
 							int ret;
 							char ackMsg[4] = "ACK";
 							client.sin_port = htons(ntohs(client.sin_port)-1);
+
 							cout<<"Detected election from other client"<<endl;
 							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
-													(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));							if ( ret < 0){
-								perror("error while sending the message \n");
-								continue;
-							}
+									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 						}
 
 
@@ -692,7 +687,8 @@ void *holdbackThread(void *id){
 		MESSAGE curMsg;
 		curMsg = curNode->holdbackQueue.front();
 
-		if(curMsg.lSequenceNums == (curNode->lastSeqNum + 1)){
+	//	if(curMsg.lSequenceNums == (curNode->lastSeqNum + 1))
+		{
 			curNode->holdbackQueue.pop();
 			curNode->lastSeqNum = curMsg.lSequenceNums;
 			printMsg = string(curMsg.sContent);
