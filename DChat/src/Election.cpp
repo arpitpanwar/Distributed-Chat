@@ -101,12 +101,33 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		updateLeader(curNode);
 		curNode->lastSeqNum = 0;
 		//curNode->statusServer = NORMAL_OPERATION;
+
+		while(!curNode->sendQueue.empty()){
+				curNode->sendQueue.pop();
+		}
+
 		MESSAGE leaderMsg;
 		string msg = "New Leader elected :" + string(curNode->sUserName);
 		strcpy(leaderMsg.sContent,msg.c_str());
 		leaderMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(leaderMsg.uuid,boost::lexical_cast<string>(rg()).c_str());
 		curNode->consoleQueue.push(leaderMsg);
+
+		map<string,bool>::iterator statusIterator = curNode->mSentMessageMap.begin();
+						curNode->lastSeqNum = 0;
+
+						while(statusIterator!=curNode->mSentMessageMap.end()){
+
+							if(statusIterator->second == false){
+								MESSAGE msg;
+								msg.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+								strcpy(msg.sContent,curNode->mMessages[statusIterator->first].c_str());
+								strcpy(msg.uuid,boost::lexical_cast<string>(rg()).c_str());
+								curNode->consoleQueue.push(msg);
+							}
+
+							statusIterator++;
+			}
 
 	}
 
@@ -166,7 +187,7 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 		else{
 			
 			if(strcmp(ackMsg,"ACKELECTION")==0){
-		//	cout << "Acknowledgment received\n";
+			cout << "Acknowledgment received\n";
 			numMsgReceived++;
 				break;
 			}else{
@@ -202,8 +223,8 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	if ( ret < 0){
 		perror("error while sending the message \n");
 	}
-	cout<<"Sending Leader Message to:"<<htons(client.sin_port);
-
+	cout<<"Sending Leader Message to:"<<htons(client.sin_port)<<endl;
+	cout<<"Send Leader Message to IP: "<<inet_ntoa(client.sin_addr)<<endl;
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
 	if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {

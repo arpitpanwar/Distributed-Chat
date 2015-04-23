@@ -30,7 +30,7 @@ using namespace std;
 udp_Server* curServer;
 udp_Server* heartBeatserver;
 udp_Server* ackServer;
-udp_Server* heartBeatSendServer;
+udp_Server* heartBeatAckServer;
 chat_node* curNode;
 extern boost::uuids::random_generator rg;
 
@@ -38,6 +38,12 @@ void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 void* heartbeatSend(void *);
 
 int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer);
+
+
+void* conductElectionThread(void* id){
+	conductElection(curNode,heartBeatserver,heartBeatAckServer);
+
+}
 
 void addUser(char ipaddress[],int portNum,char username[]){
 
@@ -143,7 +149,7 @@ void *recvMsg(void *id){
 				strcpy(ack,"ACK");
 
 
-			client.sin_port = htons(ntohs(client.sin_port)-1);
+			client.sin_port = htons(ntohs(client.sin_port)+1);
 		}
 
 			ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
@@ -182,6 +188,12 @@ void *recvMsg(void *id){
 				curNode->mStatusmap.clear();
 				curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
 				curNode->listofSockets.clear();
+
+				while(!curNode->sendQueue.empty()){
+					curNode->sendQueue.pop();
+				}
+
+
 				list<USERINFO> userList = curNode->getUserList();
 				for(itr = userList.begin(); itr != userList.end(); ++itr){
 					USERINFO user;
@@ -617,12 +629,10 @@ void *heartbeatThread(void *id){
 				}
 
 				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))== 0){
-
-
-
 							int ret;
 							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
-							client.sin_port = htons(ntohs(client.sin_port)-1);
+							client.sin_port = htons(ntohs(client.sin_port)+1);
+							cout<<"Acknowledging to "<<inet_ntoa(client.sin_addr)<<endl;
 
 							cout<<"ack election message from other client"<<endl;
 							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
@@ -631,16 +641,14 @@ void *heartbeatThread(void *id){
 						if(curNode->statusServer!=ELECTION_HAPPENING & (!curNode->bIsLeader) & (curNode->electionstatus != ELECTION_STARTED_BY_ME)){
 							int ret;
 							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
-							client.sin_port = htons(ntohs(client.sin_port)-1);
 
 							cout<<"Detected election from other client port num"<<htons(client.sin_port)<<endl;
-//							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
-//									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 
 							curNode->statusServer = ELECTION_HAPPENING;
 							curNode->electionstatus = ELECTION_STARTED_BY_ME;
 							cout<<"Entering election via heartbeatThread\n";
-							conductElection(curNode,heartBeatserver,ackServer);
+							pthread_t thread;
+							pthread_create(&thread,NULL,conductElectionThread,(void*)NULL);
 							curNode->electionstatus = NORMAL_OPERATION;
 							if(curNode->bIsLeader)
 								curNode->statusServer = NORMAL_OPERATION;
@@ -654,6 +662,8 @@ void *heartbeatThread(void *id){
 
 
 }
+
+
 
 void* heartbeatSend(void *id){
 		struct sockaddr_in client;
@@ -688,7 +698,7 @@ void* heartbeatSend(void *id){
 						if((curNode->statusServer != ELECTION_HAPPENING) && (curNode->electionstatus != ELECTION_STARTED_BY_ME)){
 							curNode->statusServer = ELECTION_HAPPENING;
 							curNode->electionstatus = ELECTION_STARTED_BY_ME;
-							conductElection(curNode,heartBeatserver,ackServer);
+							conductElection(curNode,heartBeatserver,heartBeatAckServer);
 							curNode->electionstatus = NORMAL_OPERATION;
 							if(curNode->bIsLeader)
 								curNode->statusServer = NORMAL_OPERATION;
@@ -893,6 +903,7 @@ int main(int argc, char *argv[]) {
 	curServer = new udp_Server(ipaddress,portNum);
 	ackServer = new udp_Server(ipaddress,portNum+1);
 	heartBeatserver = new udp_Server(ipaddress,portNum+2);
+	heartBeatAckServer = new udp_Server(ipaddress,portNum+3);
 	curNode = new chat_node(username,entry,ipaddress,portNum,0);
 
 	if(argc == 2 ){
@@ -940,7 +951,7 @@ int main(int argc, char *argv[]) {
 			return 1;
 		}
 
-
+		cout<<"MYRxByte is: "<<bytes<<endl;
 		strcpy(toSendip,tokens[0].c_str());
 		sendPort = stoi(tokens[1]);
 
