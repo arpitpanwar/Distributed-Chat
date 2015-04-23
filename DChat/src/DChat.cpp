@@ -33,7 +33,8 @@ udp_Server* ackServer;
 udp_Server* heartBeatAckServer;
 chat_node* curNode;
 extern boost::uuids::random_generator rg;
-
+mutex m;
+condition_variable cv;
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 void* heartbeatSend(void *);
 
@@ -41,8 +42,11 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 
 void* conductElectionThread(void* id){
-	conductElection(curNode,heartBeatserver,heartBeatAckServer);
-
+	unique_lock<mutex> electionLock(m);
+	if(!curNode->bIsLeader)
+		conductElection(curNode,heartBeatserver,heartBeatAckServer);
+	electionLock.unlock();
+	cv.notify_one();
 }
 
 void addUser(char ipaddress[],int portNum,char username[]){
@@ -286,16 +290,11 @@ void *recvMsg(void *id){
 
 				if(uuidIt==curNode->lVisitedUuids.end()){
 
-					if(lastSeqNum!= msg.lSequenceNums)
-					{
-						if(lastSeqNum == 0)
-							curNode->lastSeqNum = msg.lSequenceNums -1;
-
-						curNode->holdbackQueue.push(msg);
-						lastSeqNum = msg.lSequenceNums;
-
+					if(curNode->lastSeqNum==0){
+						curNode->lastSeqNum = msg.lSequenceNums-1;
 					}
 
+					curNode->holdbackQueue.push(msg);
 
 					curNode->lVisitedUuids.push_front(fetchedUUID);
 
@@ -306,7 +305,6 @@ void *recvMsg(void *id){
 						curNode->mSentMessageMap[fetchedUUID] = true;
 
 					}
-
 
 			}
 		}
@@ -649,9 +647,6 @@ void *heartbeatThread(void *id){
 							cout<<"Entering election via heartbeatThread\n";
 							pthread_t thread;
 							pthread_create(&thread,NULL,conductElectionThread,(void*)NULL);
-							curNode->electionstatus = NORMAL_OPERATION;
-							if(curNode->bIsLeader)
-								curNode->statusServer = NORMAL_OPERATION;
 
 					}
 				}
@@ -698,10 +693,11 @@ void* heartbeatSend(void *id){
 						if((curNode->statusServer != ELECTION_HAPPENING) && (curNode->electionstatus != ELECTION_STARTED_BY_ME)){
 							curNode->statusServer = ELECTION_HAPPENING;
 							curNode->electionstatus = ELECTION_STARTED_BY_ME;
-							conductElection(curNode,heartBeatserver,heartBeatAckServer);
-							curNode->electionstatus = NORMAL_OPERATION;
-							if(curNode->bIsLeader)
-								curNode->statusServer = NORMAL_OPERATION;
+							unique_lock<mutex> electionLock(m);
+							if(!curNode->bIsLeader)
+								conductElection(curNode,heartBeatserver,heartBeatAckServer);
+							electionLock.unlock();
+							cv.notify_one();
 						}
 
 					}else{

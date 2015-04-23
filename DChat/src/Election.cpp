@@ -111,25 +111,34 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		strcpy(leaderMsg.sContent,msg.c_str());
 		leaderMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(leaderMsg.uuid,boost::lexical_cast<string>(rg()).c_str());
+
 		curNode->consoleQueue.push(leaderMsg);
 
 		map<string,bool>::iterator statusIterator = curNode->mSentMessageMap.begin();
 						curNode->lastSeqNum = 0;
 
-						while(statusIterator!=curNode->mSentMessageMap.end()){
+				while(statusIterator!=curNode->mSentMessageMap.end()){
 
-							if(statusIterator->second == false){
-								MESSAGE msg;
-								msg.sType = MESSAGE_TYPE_CHAT_NOSEQ;
-								strcpy(msg.sContent,curNode->mMessages[statusIterator->first].c_str());
-								strcpy(msg.uuid,boost::lexical_cast<string>(rg()).c_str());
-								curNode->consoleQueue.push(msg);
-							}
+					if(statusIterator->second == false){
+						MESSAGE msg;
+						msg.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+						strcpy(msg.sContent,curNode->mMessages[statusIterator->first].c_str());
+						strcpy(msg.uuid,boost::lexical_cast<string>(rg()).c_str());
+						curNode->mMessages[string(msg.uuid)] = msg.sContent;
+						curNode->mSentMessageMap[string(msg.uuid)]=false;
+						curNode->consoleQueue.push(msg);
+					}
 
-							statusIterator++;
+					statusIterator++;
 			}
+		curNode->mMessages[string(leaderMsg.uuid)] = leaderMsg.sContent;
+		curNode->mSentMessageMap[string(leaderMsg.uuid)]=false;
+		curNode->electionstatus = NORMAL_OPERATION;
+		if(curNode->bIsLeader)
+			curNode->statusServer = NORMAL_OPERATION;
 
 	}
+
 
 
 	return ret;
