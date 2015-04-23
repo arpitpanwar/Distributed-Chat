@@ -20,7 +20,6 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	cout << "Conducting Elections...\n";
 	int ret = 0 ;
 	int val;
-	//Check if your node has the highest port number.
 	list<UserInfo>::iterator itr;
 	bool isHighest = true;
 	int numMsgReceived = 0;
@@ -33,11 +32,9 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		struct UserInfo user = *itr;
 
 		if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
-		//	cout<<"size in conductElection before:"<<curNode->listofUsers.size();
 
 			curNode->listofUsers.erase(itr);
 
-		//	cout<<"size in conductElection after:"<<curNode->listofUsers.size();
 			break;
 		}
 	}
@@ -67,15 +64,17 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	}
 
 	//delete &userList;
-
-//	cout << "isHighest:"<<isHighest<<endl;
-//	cout <<" numMsg Recevied:"<<numMsgReceived <<endl;
+#ifdef PRINTLOG
+	cout << "isHighest:"<<isHighest<<endl;
+	cout <<" numMsg Recevied:"<<numMsgReceived <<endl;
+#endif
 	//TODO Declare Yourself as the leader
 	//Checking if the size of listofUsers = 2
 	if((curNode->listofUsers.size() == 1) || (isHighest == true) || (numMsgReceived == 0)){
 		long seqNumRet;
+#ifdef PRINTLOG
 		cout << "I am the leader\n";
-
+#endif
 		flushHoldbackQ();
 
 		curNode->bIsLeader = true;
@@ -104,6 +103,9 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 		while(!curNode->sendQueue.empty()){
 				curNode->sendQueue.pop();
+		}
+		while(!curNode->consoleQueue.empty()){
+				curNode->consoleQueue.pop();
 		}
 
 		MESSAGE leaderMsg;
@@ -167,14 +169,17 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 	//Send Election Message to the Nodes with higher port numbers
 
 	int ret = sendto(curServer->get_socket(),&msgTosend,sizeof(msgTosend),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 	if ( ret < 0){
 		perror("error while sending the message \n");
 	}
-
+#endif
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
 	if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+#ifdef PERROR
 		perror("Error while setting a time constraint on the socket while sending Election message");
+#endif
 	}
 
 
@@ -183,21 +188,29 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 	char ackMsg[ACK_MSGSIZE];
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
+#ifdef PERROR
 			perror("Message being resent to : \n");
+#endif
+#ifdef PRINTLOG
 			cout<<htons(client.sin_port)<<endl;
+#endif
 			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(msgTosend),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 			if ( ret < 0){
-				//Declare that particular client as dead
+
 				perror("error while sending the message \n");
 				continue;
 			}
+#endif
 			timeout++;
 		}
 		else{
 			
 			if(strcmp(ackMsg,"ACKELECTION")==0){
-			cout << "Acknowledgment received\n";
-			numMsgReceived++;
+#ifdef PRINTLOG
+				cout << "Acknowledgment received\n";
+#endif
+				numMsgReceived++;
 				break;
 			}else{
 			timeout++;
@@ -229,15 +242,21 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 //	cout <<"Sending Ip"<<inet_ntoa(client.sin_addr)<<htons(client.sin_port);
 	//Send Election Message to the Nodes with higher port numbers
 	int ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 	if ( ret < 0){
 		perror("error while sending the message \n");
 	}
+#endif
+#ifdef PRINTLOG
 	cout<<"Sending Leader Message to:"<<htons(client.sin_port)<<endl;
 	cout<<"Send Leader Message to IP: "<<inet_ntoa(client.sin_addr)<<endl;
+#endif
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
 	if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+#ifdef PERROR
 		perror("Error while setting a time constraint on the socket while sending leader message");
+#endif
 	}
 
 	int timeout = 0;
@@ -245,8 +264,12 @@ void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	char ackMsg[ACK_MSGSIZE];
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
+#ifdef PERROR
 			perror("Leader Message  being resent,ACK not received \n");
+#endif
+#ifdef PRINTLOG
 			cout<<"RESending Leader Message to:"<<htons(client.sin_port);
+#endif
 			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 			timeout++;
 		}

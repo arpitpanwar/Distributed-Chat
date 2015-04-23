@@ -254,7 +254,8 @@ public:
 
 };
 
-
+//#define PERROR
+//#define PRINTLOG
 
 void updateLeader(chat_node* curNode);
 char* decrypt(char* data);

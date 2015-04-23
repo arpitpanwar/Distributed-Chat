@@ -73,7 +73,6 @@ void flushHoldbackQ(){
 }
 
 void addSocket(char ipaddress[], int portNum){
-	//cout << "\nAdding socket list "<<portNum<<endl;
 	struct sockaddr_in client;
 	client.sin_addr.s_addr = inet_addr(ipaddress);
 	client.sin_family = AF_INET;
@@ -128,11 +127,13 @@ void *recvMsg(void *id){
 
 		ret = recvfrom(curServer->get_socket(),&msg,sizeof(MESSAGE),0,
 				(struct sockaddr *)&client,(socklen_t*)&addr_len);
+#ifdef PERROR
 		if (ret < 0){
-			perror("error while Recv. the message \n");
-			//continue;
-		}
 
+			perror("error while Recv. the message in recv thread\n");
+
+		}
+#endif
 
 		string ip = string(inet_ntoa(client.sin_addr));
 		int port = ntohs(client.sin_port);
@@ -142,7 +143,6 @@ void *recvMsg(void *id){
 
 
 		if((msg.sType != MESSAGE_TYPE_ELECTION) & (msg.sType != MESSAGE_TYPE_LEADER)){
-		//	cout<<"Sending out ACK"<<msg.sType<<endl;
 		client.sin_port = htons(ntohs(client.sin_port)+1);
 		strcpy(ack,"ACK");
 		}
@@ -158,25 +158,26 @@ void *recvMsg(void *id){
 
 			ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
 					(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 			if ( ret < 0){
-				perror("error while sending the message \n");
+				perror("error while sending the message in recv thread \n");
 				continue;
 			}
-
+#endif
 
 
 
 		if((msg.sType == MESSAGE_TYPE_STATUS_JOIN)
 				|| (msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ) || (msg.sType == MESSAGE_TYPE_UPDATE)){
 
-			if(msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ){
-				string content = msg.sContent;
-				string key = ip+string(":")+to_string(port);
-				if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
-					content = curNode->mClientmap[key]+string(":: ")+content;
-					strcpy(&msg.sContent[0],content.c_str());
-				}
-			}
+			//			if(msg.sType ==MESSAGE_TYPE_CHAT_NOSEQ){
+			//				string content = msg.sContent;
+			//				string key = ip+string(":")+to_string(port);
+			//				if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
+			//					content = curNode->mClientmap[key]+string(":: ")+content;
+			//					strcpy(&msg.sContent[0],content.c_str());
+			//				}
+			//			}
 
 			curNode->consoleQueue.push(msg);
 
@@ -196,6 +197,9 @@ void *recvMsg(void *id){
 				while(!curNode->sendQueue.empty()){
 					curNode->sendQueue.pop();
 				}
+				while(!curNode->consoleQueue.empty()){
+					curNode->consoleQueue.pop();
+				}
 
 
 				list<USERINFO> userList = curNode->getUserList();
@@ -204,10 +208,7 @@ void *recvMsg(void *id){
 
 					user = *itr;
 					if(strcmp(user.username,curNode->lead.sName)==0){
-					//	cout<<"size in MessageTyPE leader before:"<<curNode->listofUsers.size()<<endl;
 						curNode->listofUsers.remove(user);
-					//	cout<<"size in MessageTyPE leader after:"<<curNode->listofUsers.size()<<endl;
-
 						break;
 					}
 
@@ -252,7 +253,6 @@ void *recvMsg(void *id){
 
 				if(!curNode->bIsLeader){
 					string content = msg.sContent;
-				//	cout<<"Content is "<<content<<endl;
 					vector<string> tokens = split(content,':');
 
 					list<USERINFO> userList = curNode->getUserList();
@@ -263,11 +263,9 @@ void *recvMsg(void *id){
 
 						if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
 
-				//			cout<<"size in MESSAGE_TYPE_REMOVE_USER  before:"<<curNode->listofUsers.size();
 
 							curNode->listofUsers.remove(user);
 
-					//		cout<<"size in MESSAGE_TYPE_REMOVE_USER  after:"<<curNode->listofUsers.size();
 
 
 							break;
@@ -379,7 +377,9 @@ void *sendMsg(void *id){
 			tv.tv_sec = 2;
 			tv.tv_usec = 0;
 			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+#ifdef PERROR
 				perror("Error while setting a time constraint on the socket");
+#endif
 			}
 			{
 				int timeout = 0;
@@ -391,8 +391,10 @@ void *sendMsg(void *id){
 					ret = recvfrom(ackServer->get_socket(),ackMsg,sizeof(ackMsg), 0, (struct sockaddr *) &ackClient, (socklen_t *)&addr_len);
 
 					if(ret<0){
-						//	perror("Message being resent  \n");
-						ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
+							perror("Message being resent since ACK was not received \n");
+#endif
+							ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 						timeout++;
 						if(timeout==2){
 							flag = 1;
@@ -479,11 +481,12 @@ void sendlist(char *msg){
 	strcpy(msgTosend.uuid,boost::lexical_cast<string>(rg()).c_str());
 
 	ret = sendto(curServer->get_socket(),&msgTosend,sizeof(LISTMSG),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 	if ( ret < 0){
 		perror("error while sending the List Message \n");
 
 	}
-
+#endif
 	updateMsg.sType = MESSAGE_TYPE_UPDATE;
 	string cont = ip+string(":")+portNum+string(":")+username+string(":")+rxsize;
 
@@ -495,15 +498,18 @@ void sendlist(char *msg){
 		client = *iterator;
 
 		ret = sendto(curServer->get_socket(),&updateMsg,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 		if ( ret < 0){
 			perror("error while sending the message \n");
 			continue;
 		}
-
+#endif
 		tv.tv_sec = 2;
 		tv.tv_usec = 0;
 		if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
-		    perror("Error while setting a time constraint on the socket");
+#ifdef PERROR
+			perror("Error while setting a time constraint on the socket");
+#endif
 		}
 		{
 			int timeout = 0;
@@ -511,16 +517,18 @@ void sendlist(char *msg){
 			char ackMsg[ACK_MSGSIZE];
 			while(timeout < 2){
 				if(ackServer->get_message(ackClient,ackMsg,sizeof(ack))<0){
-					perror("Message being resent \n");
-
+#ifdef PERROR
+					perror("Message being resent since ACK was not recvd. \n");
+#endif
 
 					ret = sendto(curServer->get_socket(),&updateMsg,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 					if ( ret < 0){
 
-						//Declare that particular client as dead
 						perror("error while sending the message \n");
 						continue;
 					}
+#endif
 
 					timeout++;
 				}
@@ -627,24 +635,25 @@ void *heartbeatThread(void *id){
 				}
 
 				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))== 0){
-							int ret;
+
 							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
 							client.sin_port = htons(ntohs(client.sin_port)+1);
+#ifdef PRINTLOG
 							cout<<"Acknowledging to "<<inet_ntoa(client.sin_addr)<<endl;
 
 							cout<<"ack election message from other client"<<endl;
-							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
+#endif
+							sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
 									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 
 						if(curNode->statusServer!=ELECTION_HAPPENING & (!curNode->bIsLeader) & (curNode->electionstatus != ELECTION_STARTED_BY_ME)){
-							int ret;
-							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
 
+#ifdef PRINTLOG
 							cout<<"Detected election from other client port num"<<htons(client.sin_port)<<endl;
-
+							cout<<"Entering election via heartbeatThread\n";
+#endif
 							curNode->statusServer = ELECTION_HAPPENING;
 							curNode->electionstatus = ELECTION_STARTED_BY_ME;
-							cout<<"Entering election via heartbeatThread\n";
 							pthread_t thread;
 							pthread_create(&thread,NULL,conductElectionThread,(void*)NULL);
 
@@ -677,16 +686,16 @@ void* heartbeatSend(void *id){
 					client.sin_port = htons(ntohs(iterator->sin_port)+2);
 
 					ret = sendto(heartBeatserver->get_socket(),&sendBeat,sizeof(sendBeat),0,(struct sockaddr *)&client,(socklen_t)addr_len);
+#ifdef PERROR
 					if ( ret < 0){
 						perror("error while sending the heartbeat signal \n");
 					}
+#endif
 
 				}
-		//delete &sockets;
 		map<string,double>::iterator it = curNode->mStatusmap.begin();
 		timeval start;
 		gettimeofday(&start,NULL);
-		//double curTime = clock()/CLOCKS_PER_SEC;
 		while(it != curNode->mStatusmap.end()){
 				if((  start.tv_sec - it->second) >=10){
 					if(!curNode->bIsLeader){
@@ -734,11 +743,9 @@ void* heartbeatSend(void *id){
 							USERINFO user = *itr;
 							if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
 
-				//				cout<<"size in Client dead  before:"<<curNode->listofUsers.size();
 
 								curNode->listofUsers.remove(user);
 
-				//				cout<<"size in Client dead  after:"<<curNode->listofUsers.size();
 
 								removeMsg.sType = MESSAGE_TYPE_REMOVE_USER;
 								strcpy(removeMsg.sContent,it->first.c_str());
@@ -852,6 +859,7 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 }
 void printcurrentUsers(){
 	list<UserInfo>::iterator itr;
+
 	cout<<"\nSucceeded,Current users:"<<"\n";
 
 	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
@@ -946,8 +954,9 @@ int main(int argc, char *argv[]) {
 			cout<<USAGE<<endl;
 			return 1;
 		}
-
+#ifdef PRINTDEBUG
 		cout<<"MYRxByte is: "<<bytes<<endl;
+#endif
 		strcpy(toSendip,tokens[0].c_str());
 		sendPort = stoi(tokens[1]);
 
@@ -967,19 +976,39 @@ int main(int argc, char *argv[]) {
 		strcpy(joinMsg.uuid,uuid.c_str());
 
 		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
+#ifdef PERROR
 		if ( ret < 0){
 			perror("error while sending the message \n");
-			//continue;
+		}
+#endif
+		{
+			struct sockaddr_in ackClient;
+			char ackMsg[ACK_MSGSIZE];
+			struct timeval tv;
+			tv.tv_sec = 10;
+			tv.tv_usec = 0;
+			if (setsockopt(ackServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+#ifdef PERROR
+				perror("Error while setting a time constraint on the socket");
+#endif
+			}
+			ret = recvfrom(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
+					(struct sockaddr *)&ackClient , (socklen_t*)&addr_len);
+			if(ret < 0){
+				cout << "sorry, no chat is active on "<<toSendip<<":"<<sendPort<<
+						" try again later.\n Bye"<<endl;
+				exit(-1);
+			}
+
 		}
 
 		ret = recvfrom(curServer->get_socket(),&userListMsg,sizeof(LISTMSG),0,
 				(struct sockaddr *)&seqClient,(socklen_t*)&addr_len);
+#ifdef PERROR
 		if ( ret < 0){
-			cout << "sorry, no chat is active on "<<toSendip<<":"<<sendPort<<
-					" try again later.\n Bye"<<endl;
-			exit(-1);
+			perror("error while recv the message of list\n");
 		}
-
+#endif
 		char ack[ACK_MSGSIZE];
 		seqClient.sin_port = htons(ntohs(seqClient.sin_port )+1);
 
@@ -1001,18 +1030,15 @@ int main(int argc, char *argv[]) {
 
 
 	if(create_threads(threads)){
+
 		perror("Error Creating threads \n");
 		exit(1);
 	}
 
-	//int cnt = 0;
+
 	while(true){
 		MESSAGE curMsg;
 		string inpString;
-
-	//	sleep(1);
-	//	inpString = string(username) + ":" + to_string(cnt);
-	//	cnt++;
 		getline(cin,inpString);
 
 
@@ -1022,21 +1048,27 @@ int main(int argc, char *argv[]) {
 		}
 
 		curMsg.sType = MESSAGE_TYPE_CHAT;
-		strcpy(curMsg.sContent,inpString.c_str());
+
+		{
+			string content;
+			content = curNode->sUserName + string("::") + inpString;
+			strcpy(curMsg.sContent,content.c_str());
+		}
 		strcpy(curMsg.uuid, boost::lexical_cast<string>(rg()).c_str());
 
 		curNode->mSentMessageMap[string(curMsg.uuid)]= false;
 		curNode->mMessages[string(curMsg.uuid)] = string(curMsg.sContent);
 
-		if(curNode->bIsLeader){
-			string content = curMsg.sContent;
-			string key = curNode->lead.sIpAddress+string(":")+to_string(curNode->lead.sPort);
 
-			if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
-				content = curNode->mClientmap[key]+string(":: ")+content;
-				strcpy(&curMsg.sContent[0],content.c_str());
-			}
-		}
+//		if(curNode->bIsLeader){
+//			string content = curMsg.sContent;
+//			string key = curNode->lead.sIpAddress+string(":")+to_string(curNode->lead.sPort);
+//
+//			if(curNode->mClientmap.find(key) != curNode->mClientmap.end()){
+//				content = curNode->mClientmap[key]+string(":: ")+content;
+//				strcpy(&curMsg.sContent[0],content.c_str());
+//			}
+//		}
 		curNode->consoleQueue.push(curMsg);
 	}
 

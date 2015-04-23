@@ -95,12 +95,12 @@ int getOpenPort(){
 
 		int port = BASE_PORT;
 
-		if(isPortAvailable(port) & isPortAvailable(port+1) & isPortAvailable(port+2)){
+		if(isPortAvailable(port) & isPortAvailable(port+1) & isPortAvailable(port+2) &  isPortAvailable(port+3)){
 
 			return port;
 		}else{
 			port = port+10;
-			while(!isPortAvailable(port) & !isPortAvailable(port+1) & !isPortAvailable(port+2)){
+			while(!isPortAvailable(port) & !isPortAvailable(port+1) & !isPortAvailable(port+2) & !isPortAvailable(port+3)){
 				port = port+10;
 			}
 		}
