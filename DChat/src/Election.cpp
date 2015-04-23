@@ -10,7 +10,7 @@
 #include <string.h>
 #include <sstream>
 #include <arpa/inet.h>
-long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user);
+void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user);
 
 vector<string> split(string s, char delim);
 int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user, int numMsgReceived);
@@ -74,6 +74,9 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 	if((curNode->listofUsers.size() == 1) || (isHighest == true) || (numMsgReceived == 0)){
 		long seqNumRet;
 		cout << "I am the leader\n";
+
+		flushHoldbackQ();
+
 		curNode->bIsLeader = true;
 		curNode->mStatusmap.clear();
 
@@ -87,16 +90,15 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			addSocket(user.ipaddress,atoi(user.portnum));
 			if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
 			//	cout<<"SENDING LEADER MESSAGE TO :"<<user.username;
-				seqNumRet =	sendLeaderMessage(curNode,curServer,ackServer,user);
-				if(seqNumRet > curNode->maxSeqNumseen){
-					curNode->maxSeqNumseen = seqNumRet;
-				}
+				 sendLeaderMessage(curNode,curServer,ackServer,user);
+
 			}
 
 		}
 
 
 		updateLeader(curNode);
+		curNode->lastSeqNum = 0;
 		//curNode->statusServer = NORMAL_OPERATION;
 		MESSAGE leaderMsg;
 		string msg = "New Leader elected :" + string(curNode->sUserName);
@@ -174,8 +176,8 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 	return numMsgReceived;
 }
 
-long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user){
-	long seqNum;
+void sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user){
+
 	struct sockaddr_in client;
 	client.sin_addr.s_addr = inet_addr(user.ipaddress);
 	client.sin_family = AF_INET;
@@ -196,6 +198,7 @@ long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	if ( ret < 0){
 		perror("error while sending the message \n");
 	}
+	cout<<"Sending Leader Message to:"<<htons(client.sin_port);
 
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
@@ -209,20 +212,20 @@ long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
 			perror("Leader Message  being resent,ACK not received \n");
+			cout<<"RESending Leader Message to:"<<htons(client.sin_port);
 			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 			timeout++;
 		}
 		else{
 
-		//	cout << "received ACK:"<<ackMsg<<endl;
-			seqNum = atol(ackMsg);
-		//	cout << "received Seqnum:"<<seqNum<<endl;
-			return seqNum;
+			if(strcmp(ackMsg,"ACK") == 0){
+				break;
+			}else{
+				timeout++;
+			}
 		}
 	}
-	if(timeout == 2){
-		return -1;
-	}
+
 
 }
 

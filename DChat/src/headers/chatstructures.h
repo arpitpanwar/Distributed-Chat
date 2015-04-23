@@ -221,7 +221,7 @@ public:
 	int  statusServer;
 	int electionstatus;
 	long lastSeqNum;
-	long maxSeqNumseen;
+//	long maxSeqNumseen;
 	int entryNum;
 	char ipAddress[IP_BUFSIZE];
 	char sUserName[USERNAME_BUFSIZE];
@@ -255,3 +255,4 @@ public:
 void updateLeader(chat_node* curNode);
 char* decrypt(char* data);
 char* encrypt(char* data);
+void flushHoldbackQ();
