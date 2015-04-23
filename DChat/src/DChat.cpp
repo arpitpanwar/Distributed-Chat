@@ -797,6 +797,26 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 	return ret;
 
 }
+void printcurrentUsers(){
+	list<UserInfo>::iterator itr;
+	cout<<"\nSucceeded,Current users:"<<"\n";
+
+	for(itr = curNode->listofUsers.begin(); itr != curNode->listofUsers.end(); ++itr){
+		USERINFO user;
+		user = *itr;
+		if(strcmp(user.username,curNode->lead.sName)==0){
+			cout<<user.username  <<" "<<user.ipaddress<<":"<<user.portnum
+					<<" (LEADER)\n";
+
+		}
+		else{
+			cout<<user.username  <<" "<<user.ipaddress<<":"<<user.portnum<<"\n";
+
+		}
+
+	}
+
+}
 
 int main(int argc, char *argv[]) {
 
@@ -836,7 +856,8 @@ int main(int argc, char *argv[]) {
 	if(argc == 3){
 		isSeq = false;
 		entry = 0;
-		cout << "Joining a existing chat \n";
+		cout <<username <<" starting a new chat on "
+				<<argv[2]<<" listening on "<< ipaddress << ":"<<portNum<<endl;
 	}
 
 	if(isSeq){
@@ -847,6 +868,8 @@ int main(int argc, char *argv[]) {
 		populateLeader(&curNode->lead,ipaddress,portNum,username);
 		curNode->bIsLeader =true;
 		curNode->lastSeqNum = 0;
+		printcurrentUsers();
+		cout<< "Waiting for others to join \n";
 	}
 	else{
 		strcpy(curNode->rxBytes,rxsize);
@@ -889,19 +912,29 @@ int main(int argc, char *argv[]) {
 			perror("error while sending the message \n");
 			//continue;
 		}
+
+
+
+		struct timeval tv;
+		tv.tv_sec = 10;
+		tv.tv_usec = 0;
+		if (setsockopt(curServer->get_socket(), SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+			perror("Error while setting a time constraint on join socket");
+		}
 		ret = recvfrom(curServer->get_socket(),&userListMsg,sizeof(LISTMSG),0,
 				(struct sockaddr *)&seqClient,(socklen_t*)&addr_len);
 		if ( ret < 0){
-			perror("error while sending the message \n");
-			//continue;
+			cout << "sorry, no chat is active on "<<toSendip<<":"<<sendPort<<
+					" try again later.\n Bye"<<endl;
+			exit(-1);
 		}
 		char ack[ACK_MSGSIZE];
 		seqClient.sin_port = htons(ntohs(seqClient.sin_port )+1);
+
+
 		ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
-						(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
-		if ( ret < 0){
-			perror("error while sending the message \n");
-		}
+				(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
+
 
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
@@ -909,6 +942,7 @@ int main(int argc, char *argv[]) {
 		strcpy(curNode->lead.sIpAddress,userListMsg.leaderip);
 		curNode->lead.sPort = userListMsg.leaderPort;
 		strcpy(curNode->lead.sName ,userListMsg.leaderName);
+		printcurrentUsers();
 	}
 
 
