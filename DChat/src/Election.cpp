@@ -32,9 +32,11 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		struct UserInfo user = *itr;
 
 		if((strcmp(user.username,curNode->lead.sName)==0) & (strcmp(user.ipaddress,curNode->lead.sIpAddress)==0) & ((atoi(user.portnum) == curNode->lead.sPort)) ){
+		//	cout<<"size in conductElection before:"<<curNode->listofUsers.size();
 
 			curNode->listofUsers.erase(itr);
 
+		//	cout<<"size in conductElection after:"<<curNode->listofUsers.size();
 			break;
 		}
 	}
@@ -65,8 +67,8 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 	//delete &userList;
 
-	cout << "isHighest:"<<isHighest<<endl;
-	cout <<" numMsg Recevied:"<<numMsgReceived <<endl;
+//	cout << "isHighest:"<<isHighest<<endl;
+//	cout <<" numMsg Recevied:"<<numMsgReceived <<endl;
 	//TODO Declare Yourself as the leader
 	//Checking if the size of listofUsers = 2
 	if((curNode->listofUsers.size() == 1) || (isHighest == true) || (numMsgReceived == 0)){
@@ -84,6 +86,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 			user = *itr;
 			addSocket(user.ipaddress,atoi(user.portnum));
 			if(!((strcmp(user.ipaddress,curNode->ipAddress)==0) & ((atoi(user.portnum) == curNode->portNum))) ){
+			//	cout<<"SENDING LEADER MESSAGE TO :"<<user.username;
 				seqNumRet =	sendLeaderMessage(curNode,curServer,ackServer,user);
 				if(seqNumRet > curNode->maxSeqNumseen){
 					curNode->maxSeqNumseen = seqNumRet;
@@ -146,8 +149,8 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 	char ackMsg[ACK_MSGSIZE];
 	while(timeout < 2){
 		if(ackServer->get_message(ackClient,ackMsg,sizeof(ackMsg))<0){
-			perror("Message being resent \n");
-
+			perror("Message being resent to : \n");
+			cout<<htons(client.sin_port)<<endl;
 			ret = sendto(curServer->get_socket(),&msgTosend,sizeof(msgTosend),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 			if ( ret < 0){
 				//Declare that particular client as dead
@@ -159,7 +162,7 @@ int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* a
 		else{
 			
 			if(strcmp(ackMsg,"ACKELECTION")==0){
-			cout << "Acknowledgment received\n";
+		//	cout << "Acknowledgment received\n";
 			numMsgReceived++;
 				break;
 			}else{
@@ -187,7 +190,7 @@ long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE,curNode->sUserName);
 	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE
 			+USERNAME_BUFSIZE,curNode->rxBytes);
-
+//	cout <<"Sending Ip"<<inet_ntoa(client.sin_addr)<<htons(client.sin_port);
 	//Send Election Message to the Nodes with higher port numbers
 	int ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 	if ( ret < 0){
@@ -210,7 +213,10 @@ long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 			timeout++;
 		}
 		else{
+
+		//	cout << "received ACK:"<<ackMsg<<endl;
 			seqNum = atol(ackMsg);
+		//	cout << "received Seqnum:"<<seqNum<<endl;
 			return seqNum;
 		}
 	}

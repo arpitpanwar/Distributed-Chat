@@ -19,9 +19,9 @@ typedef struct message{
 	long lSequenceNums;
 	int timestamp;
 
-	bool operator < (const message &rhs)const
+	bool operator > (const message &rhs)const
 	{
-	    return rhs.lSequenceNums < lSequenceNums;
+	    return lSequenceNums > rhs.lSequenceNums;
 	}
 
 
@@ -127,7 +127,7 @@ class PriorityBlockingQueue
   }
 
  private:
-  std::priority_queue<T> queue_;
+  std::priority_queue<T,vector<T>,greater<T>> queue_;
   std::mutex mutex_;
   std::condition_variable cond_;
 };

@@ -121,8 +121,8 @@ void *recvMsg(void *id){
 		string ip = string(inet_ntoa(client.sin_addr));
 		int port = ntohs(client.sin_port);
 
-		if((msg.sType != MESSAGE_TYPE_ELECTION) && (msg.sType != MESSAGE_TYPE_LEADER)){
-
+		if((msg.sType != MESSAGE_TYPE_ELECTION) & (msg.sType != MESSAGE_TYPE_LEADER)){
+		//	cout<<"Sending out ACK"<<msg.sType<<endl;
 		client.sin_port = htons(ntohs(client.sin_port)+1);
 		strcpy(ack,"ACK");
 		}
@@ -133,6 +133,7 @@ void *recvMsg(void *id){
 			else
 			{
 				strcpy(ack,to_string(curNode->maxSeqNumseen).c_str());
+			//	cout<<"Sending out maxSeqNumseen"<<ack<<endl;
 			}
 			client.sin_port = htons(ntohs(client.sin_port)-1);
 		}
@@ -176,7 +177,10 @@ void *recvMsg(void *id){
 
 				user = *itr;
 				if(strcmp(user.username,curNode->lead.sName)==0){
-					curNode->listofUsers.erase(itr);
+				//	cout<<"size in MessageTyPE leader before:"<<curNode->listofUsers.size()<<endl;
+					curNode->listofUsers.remove(user);
+				//	cout<<"size in MessageTyPE leader after:"<<curNode->listofUsers.size()<<endl;
+
 					break;
 				}
 
@@ -216,7 +220,13 @@ void *recvMsg(void *id){
 						USERINFO user = *itr;
 
 						if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
+
+				//			cout<<"size in MESSAGE_TYPE_REMOVE_USER  before:"<<curNode->listofUsers.size();
+
 							curNode->listofUsers.remove(user);
+
+					//		cout<<"size in MESSAGE_TYPE_REMOVE_USER  after:"<<curNode->listofUsers.size();
+
 
 							break;
 						}
@@ -559,19 +569,19 @@ void *heartbeatThread(void *id){
 
 				else if(received.compare(to_string(MESSAGE_TYPE_ELECTION))== 0){
 
-					if(curNode->statusServer != ELECTION_HAPPENING){
+
 
 							int ret;
 							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
 							client.sin_port = htons(ntohs(client.sin_port)-1);
 
-							cout<<"Detected election from other client"<<endl;
+							cout<<"ack election message from other client"<<endl;
 							ret = sendto(ackServer->get_socket(),&ackMsg,sizeof(ackMsg),0,
 									(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
-					}else{
-						if(curNode->statusServer!=ELECTION_HAPPENING && (!curNode->bIsLeader)){
+
+						if(curNode->statusServer!=ELECTION_HAPPENING & (!curNode->bIsLeader) & (curNode->electionstatus != ELECTION_STARTED_BY_ME)){
 							int ret;
-							char ackMsg[4] = "ACK";
+							char ackMsg[ACK_MSGSIZE] = "ACKELECTION";
 							client.sin_port = htons(ntohs(client.sin_port)-1);
 
 							cout<<"Detected election from other client port num"<<htons(client.sin_port)<<endl;
@@ -585,7 +595,7 @@ void *heartbeatThread(void *id){
 							curNode->electionstatus = NORMAL_OPERATION;
 							if(curNode->bIsLeader)
 								curNode->statusServer = NORMAL_OPERATION;
-						}
+
 					}
 				}
 
@@ -668,7 +678,12 @@ void* heartbeatSend(void *id){
 						while(itr!=userList.end()){
 							USERINFO user = *itr;
 							if((strcmp(user.ipaddress,tokens[0].c_str())==0) && (strcmp(user.portnum,tokens[1].c_str())==0)){
+
+				//				cout<<"size in Client dead  before:"<<curNode->listofUsers.size();
+
 								curNode->listofUsers.remove(user);
+
+				//				cout<<"size in Client dead  after:"<<curNode->listofUsers.size();
 
 								removeMsg.sType = MESSAGE_TYPE_REMOVE_USER;
 								strcpy(removeMsg.sContent,it->first.c_str());
@@ -797,7 +812,7 @@ int main(int argc, char *argv[]) {
 	if(argc == 2 ){
 		isSeq = true;
 		entry = 1;
-		cout << "New Chat Started \n";
+		cout << argv[1]<<" started a new chat ";
 	}
 	if(argc == 3){
 		isSeq = false;
@@ -806,12 +821,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	portNum = getOpenPort();
-	cout<<"Port is:"<<portNum<<endl;
+
 	strcpy(username,argv[1]);
 	strcpy(ipaddress,findip().c_str());
 	string bytes = getRxBytes();
 	strcpy(rxsize,bytes.c_str());
-
+	cout<<"listening on "<<ipaddress<<":"<<portNum<<endl;
 	curServer = new udp_Server(ipaddress,portNum);
 	ackServer = new udp_Server(ipaddress,portNum+1);
 	heartBeatserver = new udp_Server(ipaddress,portNum+2);
