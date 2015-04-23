@@ -24,6 +24,7 @@
 #include "headers/defs.h"
 #include "headers/chatstructures.h"
 
+
 using namespace std;
 
 udp_Server* curServer;
@@ -31,6 +32,7 @@ udp_Server* heartBeatserver;
 udp_Server* ackServer;
 udp_Server* heartBeatSendServer;
 chat_node* curNode;
+extern boost::uuids::random_generator rg;
 
 void populateLeader(LEADER *lead,char ip[],int portNum,char username[]);
 void* heartbeatSend(void *);
@@ -121,6 +123,10 @@ void *recvMsg(void *id){
 		string ip = string(inet_ntoa(client.sin_addr));
 		int port = ntohs(client.sin_port);
 
+		string fetchedUUID = string(msg.uuid);
+
+
+
 		if((msg.sType != MESSAGE_TYPE_ELECTION) & (msg.sType != MESSAGE_TYPE_LEADER)){
 		//	cout<<"Sending out ACK"<<msg.sType<<endl;
 		client.sin_port = htons(ntohs(client.sin_port)+1);
@@ -165,44 +171,63 @@ void *recvMsg(void *id){
 
 		}
 		else if ( msg.sType == MESSAGE_TYPE_LEADER){
-			list<UserInfo>::iterator itr;
+			list<string>::iterator uuidIt = find(curNode->lVisitedUuids.begin(),curNode->lVisitedUuids.end(),fetchedUUID);
 
-			string content = string(msg.sContent);
-			curNode->mStatusmap.clear();
-			curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
-			curNode->listofSockets.clear();
-			list<USERINFO> userList = curNode->getUserList();
-			for(itr = userList.begin(); itr != userList.end(); ++itr){
-				USERINFO user;
+			if(uuidIt==curNode->lVisitedUuids.end()){
+				curNode->lVisitedUuids.push_back(fetchedUUID);
+				list<UserInfo>::iterator itr;
+				string content = string(msg.sContent);
+				curNode->mStatusmap.clear();
+				curNode->mClientmap.erase(string(curNode->lead.sIpAddress)+":"+to_string(curNode->lead.sPort));
+				curNode->listofSockets.clear();
+				list<USERINFO> userList = curNode->getUserList();
+				for(itr = userList.begin(); itr != userList.end(); ++itr){
+					USERINFO user;
 
-				user = *itr;
-				if(strcmp(user.username,curNode->lead.sName)==0){
-				//	cout<<"size in MessageTyPE leader before:"<<curNode->listofUsers.size()<<endl;
-					curNode->listofUsers.remove(user);
-				//	cout<<"size in MessageTyPE leader after:"<<curNode->listofUsers.size()<<endl;
+					user = *itr;
+					if(strcmp(user.username,curNode->lead.sName)==0){
+					//	cout<<"size in MessageTyPE leader before:"<<curNode->listofUsers.size()<<endl;
+						curNode->listofUsers.remove(user);
+					//	cout<<"size in MessageTyPE leader after:"<<curNode->listofUsers.size()<<endl;
 
-					break;
+						break;
+					}
+
+				}
+				//delete &userList;
+
+				char portNum[PORT_BUFSIZE];
+				sscanf(portNum, "%d", &port);
+				memcpy(curNode->lead.sIpAddress,msg.sContent,IP_BUFSIZE);
+				memcpy(portNum,msg.sContent+IP_BUFSIZE,PORT_BUFSIZE);
+				memcpy(curNode->lead.sName ,msg.sContent+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
+				memcpy(curNode->rxBytes ,msg.sContent+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,RXBYTE_BUFSIZE);
+
+				curNode->lead.sPort = stoi(string(portNum));
+
+				addSocket(curNode->lead.sIpAddress,curNode->lead.sPort);
+
+				curNode->statusServer = NORMAL_OPERATION;
+
+
+				lastSeqNum = 0;
+
+				map<string,bool>::iterator statusIterator = curNode->mSentMessageMap.begin();
+
+				while(statusIterator!=curNode->mSentMessageMap.end()){
+
+					if(statusIterator->second == false){
+						MESSAGE msg;
+						msg.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+						strcpy(msg.sContent,curNode->mMessages[statusIterator->first].c_str());
+						strcpy(msg.uuid,boost::lexical_cast<string>(rg()).c_str());
+						curNode->consoleQueue.push(msg);
+					}
+
+					statusIterator++;
 				}
 
 			}
-			//delete &userList;
-
-			char portNum[PORT_BUFSIZE];
-			sscanf(portNum, "%d", &port);
-			memcpy(curNode->lead.sIpAddress,msg.sContent,IP_BUFSIZE);
-			memcpy(portNum,msg.sContent+IP_BUFSIZE,PORT_BUFSIZE);
-			memcpy(curNode->lead.sName ,msg.sContent+IP_BUFSIZE+PORT_BUFSIZE,USERNAME_BUFSIZE);
-			memcpy(curNode->rxBytes ,msg.sContent+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,RXBYTE_BUFSIZE);
-
-			curNode->lead.sPort = stoi(string(portNum));
-
-			addSocket(curNode->lead.sIpAddress,curNode->lead.sPort);
-
-			curNode->statusServer = NORMAL_OPERATION;
-
-
-			lastSeqNum = 0;
-
 
 		}else{
 
@@ -244,13 +269,30 @@ void *recvMsg(void *id){
 
 
 			}else{
-				if(lastSeqNum!= msg.lSequenceNums)
-				{
-					if(curNode->maxSeqNumseen < msg.lSequenceNums)
-						curNode->maxSeqNumseen = msg.lSequenceNums;
+				list<string>::iterator uuidIt = find(curNode->lVisitedUuids.begin(),curNode->lVisitedUuids.end(),fetchedUUID);
 
-					lastSeqNum = msg.lSequenceNums;
-					curNode->holdbackQueue.push(msg);
+				if(uuidIt==curNode->lVisitedUuids.end()){
+
+					if(lastSeqNum!= msg.lSequenceNums)
+					{
+						if(curNode->maxSeqNumseen < msg.lSequenceNums)
+							curNode->maxSeqNumseen = msg.lSequenceNums;
+
+						lastSeqNum = msg.lSequenceNums;
+						curNode->holdbackQueue.push(msg);
+					}
+
+					curNode->lVisitedUuids.push_front(fetchedUUID);
+
+					map<string,bool>::iterator mapit = curNode->mSentMessageMap.find(fetchedUUID);
+
+					if(mapit!=curNode->mSentMessageMap.end()){
+
+						curNode->mSentMessageMap[fetchedUUID] = true;
+
+					}
+
+
 				}
 			}
 		}
@@ -421,7 +463,7 @@ void sendlist(char *msg){
 	msgTosend.numUsers = num;
 	msgTosend.MaxSeqNum = curNode->maxSeqNumseen;
 	strcpy(msgTosend.leaderName,curNode->lead.sName);
-
+	strcpy(msgTosend.uuid,boost::lexical_cast<string>(rg()).c_str());
 
 	ret = sendto(curServer->get_socket(),&msgTosend,sizeof(LISTMSG),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
 	if ( ret < 0){
@@ -431,7 +473,10 @@ void sendlist(char *msg){
 
 	updateMsg.sType = MESSAGE_TYPE_UPDATE;
 	string cont = ip+string(":")+portNum+string(":")+username+string(":")+rxsize;
+
 	strcpy(updateMsg.sContent,cont.c_str());
+	strcpy(updateMsg.uuid,boost::lexical_cast<string>(rg()).c_str());
+
 	list<sockaddr_in> sockets = curNode->getSocketList();
 	for (std::list<sockaddr_in>::const_iterator iterator = sockets.begin(), end = sockets.end(); iterator != end; ++iterator) {
 		client = *iterator;
@@ -482,7 +527,7 @@ void sendlist(char *msg){
 	string temp;
 	update.sType = MESSAGE_TYPE_CHAT;
 	strcpy(update.sContent, string(string("NOTICE:: ")+string(username)+string(" joined on:: ")+string(ip)+string(":")+to_string(port)).c_str());
-
+	strcpy(update.uuid,boost::lexical_cast<string>(rg()).c_str());
 	curNode->sendQueue.push(update);
 }
 
@@ -687,11 +732,14 @@ void* heartbeatSend(void *id){
 
 								removeMsg.sType = MESSAGE_TYPE_REMOVE_USER;
 								strcpy(removeMsg.sContent,it->first.c_str());
+								strcpy(removeMsg.uuid,boost::lexical_cast<string>(rg()).c_str());
+
 								curNode->consoleQueue.push(removeMsg);
 
 								string remove = "Notice "+string(user.username)+" left the group or crashed";
 								removeChat.sType=MESSAGE_TYPE_CHAT;
 								strcpy(removeChat.sContent,remove.c_str());
+								strcpy(removeChat.uuid,boost::lexical_cast<string>(rg()).c_str());
 
 								curNode->consoleQueue.push(removeChat);
 
@@ -795,6 +843,7 @@ int create_threads(pthread_t threads[NUM_THREADS]){
 
 int main(int argc, char *argv[]) {
 
+
 	if((argc==1) | (argv == NULL)){
 		cout<<"Invalid number of arguments"<<endl;
 		cout<<USAGE<<endl;
@@ -872,22 +921,28 @@ int main(int argc, char *argv[]) {
 
 		//Entering details of the user to be sent so that it can join the group.
 		joinMsg.sType = MESSAGE_TYPE_STATUS_JOIN;
+		string uuid = boost::lexical_cast<std::string>(rg());
 
 		memcpy(joinMsg.sContent,ipaddress,IP_BUFSIZE);
 		sprintf(joinMsg.sContent+IP_BUFSIZE,"%d",portNum);
 		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE,username,USERNAME_BUFSIZE);
 		memcpy(joinMsg.sContent+IP_BUFSIZE+PORT_BUFSIZE+USERNAME_BUFSIZE,bytes.c_str(),RXBYTE_BUFSIZE);
+
+		strcpy(joinMsg.uuid,uuid.c_str());
+
 		ret = sendto(curServer->get_socket(),&joinMsg,sizeof(MESSAGE),0,(struct sockaddr *)&seqClient,(socklen_t)sizeof(struct sockaddr));
 		if ( ret < 0){
 			perror("error while sending the message \n");
 			//continue;
 		}
+
 		ret = recvfrom(curServer->get_socket(),&userListMsg,sizeof(LISTMSG),0,
 				(struct sockaddr *)&seqClient,(socklen_t*)&addr_len);
 		if ( ret < 0){
 			perror("error while sending the message \n");
 			//continue;
 		}
+
 		char ack[ACK_MSGSIZE];
 		seqClient.sin_port = htons(ntohs(seqClient.sin_port )+1);
 		ret = sendto(ackServer->get_socket(),&ack,sizeof(ack),0,
@@ -895,6 +950,8 @@ int main(int argc, char *argv[]) {
 		if ( ret < 0){
 			perror("error while sending the message \n");
 		}
+
+		curNode->lVisitedUuids.push_back(string(userListMsg.uuid));
 
 		populatesocketClient(userListMsg.listUsers,userListMsg.numUsers);
 		addSocket(userListMsg.leaderip,userListMsg.leaderPort);
@@ -928,7 +985,10 @@ int main(int argc, char *argv[]) {
 
 		curMsg.sType = MESSAGE_TYPE_CHAT;
 		strcpy(curMsg.sContent,inpString.c_str());
+		strcpy(curMsg.uuid, boost::lexical_cast<string>(rg()).c_str());
 
+		curNode->mSentMessageMap[string(curMsg.uuid)]= false;
+		curNode->mMessages[string(curMsg.uuid)] = string(curMsg.sContent);
 
 		if(curNode->bIsLeader){
 			string content = curMsg.sContent;

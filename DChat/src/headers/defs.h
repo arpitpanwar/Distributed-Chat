@@ -15,6 +15,11 @@
 #include<string>
 #include <string.h>
 #include <sys/time.h>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/limits.hpp>
+#include <boost/lexical_cast.hpp>
 
 #define MESSAGE_TYPE_CHAT 1
 
@@ -28,7 +33,7 @@
 #define MESSAGE_TYPE_STATUS_ISALIVE 8
 #define MESSAGE_TYPE_CHAT_NOSEQ 9
 #define MESSAGE_TYPE_UPDATE 10
-#define DEFAULT_INTERFACE "em1"
+#define DEFAULT_INTERFACE "eth0"
 
 #define ELECTION_HAPPENING 11
 #define NORMAL_OPERATION 12
@@ -45,6 +50,8 @@
 #define USERNAME_BUFSIZE 32
 #define RXBYTE_BUFSIZE 32
 #define BASE_PORT 8980
+#define UUID_MAXSIZE 36
+
 #define USAGE "Usage:\nTo start a new chat: dchat <NAME> \nTo join an existing chat: dchat <NAME> <IP>:<PORT>\n<NAME>: The name to be visible to other users\n<IP>:<PORT> :- IP Address and Port of the client to send join request to "
 
 #define INVALID_MESSAGE_SIZE "Only Chat messages less that 2048 characters supported"

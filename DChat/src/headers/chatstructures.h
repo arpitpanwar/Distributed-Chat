@@ -18,6 +18,7 @@ typedef struct message{
 	int sType;
 	long lSequenceNums;
 	int timestamp;
+	char uuid[UUID_MAXSIZE];
 
 	bool operator > (const message &rhs)const
 	{
@@ -40,6 +41,7 @@ typedef struct ListMessage{
 	long MaxSeqNum;
 	char listUsers[MESSAGE_SIZE];
 	char leaderName[USERNAME_BUFSIZE];
+	char uuid[UUID_MAXSIZE];
 }LISTMSG;
 
 typedef struct leader{
@@ -229,14 +231,16 @@ public:
 	int portNum;
 	LEADER lead;
 	list<USERINFO> listofUsers;
+	list<sockaddr_in> listofSockets;
+	list<string> lVisitedUuids;
 	map<string,string> mClientmap;
 	map<string,double> mStatusmap;
-	list<sockaddr_in> listofSockets;
+	map<string,bool> mSentMessageMap;
+	map<string,string> mMessages;
 	PriorityBlockingQueue<MESSAGE> holdbackQueue;
 	Queue<MESSAGE> consoleQueue;
 	Queue<MESSAGE> sendQueue;
 	Queue<string> printQueue;
-
 
 	list<USERINFO> getUserList(){
 			list<USERINFO> copyList(listofUsers.begin(),listofUsers.end());

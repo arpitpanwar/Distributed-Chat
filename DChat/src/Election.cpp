@@ -11,6 +11,7 @@
 #include <sstream>
 #include <arpa/inet.h>
 long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user);
+boost::uuids::random_generator rg;
 
 vector<string> split(string s, char delim);
 int sendElectionMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ackServer, USERINFO user, int numMsgReceived);
@@ -102,6 +103,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		string msg = "New Leader elected :" + string(curNode->sUserName);
 		strcpy(leaderMsg.sContent,msg.c_str());
 		leaderMsg.sType = MESSAGE_TYPE_CHAT;
+		strcpy(leaderMsg.uuid,boost::lexical_cast<string>(rg()).c_str());
 		curNode->consoleQueue.push(leaderMsg);
 
 	}
@@ -190,6 +192,8 @@ long sendLeaderMessage(chat_node* curNode, udp_Server* curServer, udp_Server* ac
 	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE,curNode->sUserName);
 	strcpy(msgTosend.sContent+IP_BUFSIZE+PORT_BUFSIZE
 			+USERNAME_BUFSIZE,curNode->rxBytes);
+	strcpy(msgTosend.uuid,boost::lexical_cast<string>(rg()).c_str());
+
 //	cout <<"Sending Ip"<<inet_ntoa(client.sin_addr)<<htons(client.sin_port);
 	//Send Election Message to the Nodes with higher port numbers
 	int ret = sendto(curServer->get_socket(),&msgTosend,sizeof(MESSAGE),0,(struct sockaddr *)&client,(socklen_t)sizeof(struct sockaddr));
