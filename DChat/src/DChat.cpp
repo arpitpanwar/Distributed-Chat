@@ -26,7 +26,7 @@
 
 
 using namespace std;
-
+bool init = true;
 udp_Server* curServer;
 udp_Server* heartBeatserver;
 udp_Server* ackServer;
@@ -546,7 +546,7 @@ void sendlist(char *msg){
 	addSocket(ip,port);
 	MESSAGE update;
 	string temp;
-	update.sType = MESSAGE_TYPE_CHAT;
+	update.sType = MESSAGE_TYPE_UPDATE_CHAT;
 	strcpy(update.sContent, string(string("NOTICE:: ")+string(username)+string(" joined on:: ")+string(ip)+string(":")+to_string(port)).c_str());
 	strcpy(update.uuid,boost::lexical_cast<string>(rg()).c_str());
 
@@ -754,7 +754,7 @@ void* heartbeatSend(void *id){
 								curNode->consoleQueue.push(removeMsg);
 
 								string remove = "Notice "+string(user.username)+" left the group or crashed";
-								removeChat.sType=MESSAGE_TYPE_CHAT;
+								removeChat.sType=MESSAGE_TYPE_LEAVE_CHAT;
 								strcpy(removeChat.sContent,remove.c_str());
 								strcpy(removeChat.uuid,boost::lexical_cast<string>(rg()).c_str());
 
@@ -790,8 +790,11 @@ void *holdbackThread(void *id){
 		MESSAGE curMsg;
 		curMsg = curNode->holdbackQueue.front();
 
-		if(curMsg.lSequenceNums == (curNode->lastSeqNum + 1))
+		if((curMsg.lSequenceNums == (curNode->lastSeqNum + 1))|| init)
 		{
+			if(init)
+				init = false;
+
 			curNode->holdbackQueue.pop();
 			curNode->lastSeqNum = curMsg.lSequenceNums;
 			printMsg = string(curMsg.sContent);
@@ -919,7 +922,7 @@ int main(int argc, char *argv[]) {
 	if(argc == 3){
 		isSeq = false;
 		entry = 0;
-		cout <<username <<" starting a new chat on "
+		cout <<username <<" joining a new chat on "
 				<<argv[2]<<" listening on "<< ipaddress << ":"<<portNum<<endl;
 	}
 

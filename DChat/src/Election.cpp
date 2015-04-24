@@ -111,7 +111,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 		MESSAGE leaderMsg;
 		string msg = "New Leader elected :" + string(curNode->sUserName);
 		strcpy(leaderMsg.sContent,msg.c_str());
-		leaderMsg.sType = MESSAGE_TYPE_CHAT;
+		leaderMsg.sType = MESSAGE_TYPE_LEADER_CHAT;
 		strcpy(leaderMsg.uuid,boost::lexical_cast<string>(rg()).c_str());
 
 		curNode->consoleQueue.push(leaderMsg);
@@ -123,7 +123,7 @@ int conductElection(chat_node* curNode, udp_Server* curServer, udp_Server* ackSe
 
 					if(statusIterator->second == false){
 						MESSAGE msg;
-						msg.sType = MESSAGE_TYPE_CHAT_NOSEQ;
+						msg.sType = MESSAGE_TYPE_CHAT;
 						strcpy(msg.sContent,curNode->mMessages[statusIterator->first].c_str());
 						strcpy(msg.uuid,boost::lexical_cast<string>(rg()).c_str());
 						curNode->mMessages[string(msg.uuid)] = msg.sContent;

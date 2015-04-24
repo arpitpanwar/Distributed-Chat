@@ -25,6 +25,10 @@ typedef struct message{
 	    return lSequenceNums > rhs.lSequenceNums;
 	}
 
+	bool operator < (const message &rhs)const
+	{
+		    return sType < rhs.sType;
+	}
 
 }MESSAGE;
 
@@ -62,6 +66,75 @@ typedef struct UserInfo{
 	}
 
 }USERINFO;
+
+template <typename T>
+class PriorityDescendingBlockingQueue
+{
+ public:
+
+  T pop()
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    while (queue_.empty())
+    {
+      cond_.wait(mlock);
+    }
+    auto item = queue_.top();
+    queue_.pop();
+    mlock.unlock();
+
+    return item;
+  }
+
+  T front(){
+	  std::unique_lock<std::mutex> mlock(mutex_);
+	  while (queue_.empty())
+	  {
+		  cond_.wait(mlock);
+	  }
+	  auto item = queue_.top();
+	  mlock.unlock();
+
+	  return item;
+  }
+
+
+  void pop(T& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    while (queue_.empty())
+    {
+      cond_.wait(mlock);
+    }
+    item = queue_.front();
+    queue_.pop();
+  }
+  bool empty()
+  {
+      return queue_.empty();
+  }
+
+  void push(const T& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    queue_.push(item);
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+  void push(T&& item)
+  {
+    std::unique_lock<std::mutex> mlock(mutex_);
+    queue_.push(std::move(item));
+    mlock.unlock();
+    cond_.notify_one();
+  }
+
+ private:
+  std::priority_queue<T,vector<T>> queue_;
+  std::mutex mutex_;
+  std::condition_variable cond_;
+};
 
 
 
@@ -238,9 +311,9 @@ public:
 	map<string,bool> mSentMessageMap;
 	map<string,string> mMessages;
 	PriorityBlockingQueue<MESSAGE> holdbackQueue;
-	Queue<MESSAGE> consoleQueue;
-	Queue<MESSAGE> sendQueue;
-	Queue<string> printQueue;
+	PriorityDescendingBlockingQueue<MESSAGE> consoleQueue;
+	PriorityDescendingBlockingQueue<MESSAGE> sendQueue;
+	PriorityDescendingBlockingQueue<string> printQueue;
 
 	list<USERINFO> getUserList(){
 			list<USERINFO> copyList(listofUsers.begin(),listofUsers.end());
