@@ -1,9 +1,5 @@
 #include "headers/udpserver.h"
-
-#include<string.h>
-#include<stdio.h>
-#include<arpa/inet.h>
-#include<unistd.h>
+#include "headers/defs.h"
 
 udp_Server::udp_Server(const char *ipAddr, int port ){
 	f_port = port;

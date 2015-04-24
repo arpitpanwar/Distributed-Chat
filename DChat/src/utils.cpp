@@ -1,17 +1,6 @@
-#include <stdio.h>
-#include <sys/types.h>
-#include <ifaddrs.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include<iostream>
 #include "headers/udpserver.h"
 #include "headers/defs.h"
 #include "headers/chatstructures.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <sstream>
-
 
 using namespace std;
 
@@ -161,7 +150,5 @@ string getRxBytes(){
 		}
 
 	}
-
-
 
 }

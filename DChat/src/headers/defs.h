@@ -8,27 +8,44 @@
 #ifndef SRC_HEADERS_DEFS_H_
 #define SRC_HEADERS_DEFS_H_
 
-#include<map>
-#include<list>
-#include<algorithm>
-#include<stdlib.h>
-#include<string>
+#include <iostream>
+#include <cstdlib>
+#include <sstream>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <string>
+#include <sstream>
+#include <pthread.h>
+#include <vector>
+#include <cctype>
+#include <algorithm>
+#include <map>
+#include <list>
+#include <mutex>
+#include <condition_variable>
+#include <deque>
+#include <queue>
 #include <sys/time.h>
+#include <ifaddrs.h>
+#include <netinet/in.h>
 
 #define MESSAGE_TYPE_CHAT 1
+#define MESSAGE_TYPE_JOIN 2
+#define MESSAGE_TYPE_DELETE 3
+#define MESSAGE_TYPE_UPDATE 4
+#define MESSAGE_TYPE_CHECK 5
+#define MESSAGE_TYPE_PROPOSED 6
+#define MESSAGE_TYPE_NOTICE 7
+#define MESSAGE_TYPE_REMOVE_USER 8
 
-#define MESSAGE_TYPE_ELECTION 2
-#define MESSAGE_TYPE_USERLIST 3
-
-#define MESSAGE_TYPE_STATUS 4
-#define MESSAGE_TYPE_STATUS_JOIN 5
-#define MESSAGE_TYPE_STATUS_LEAVE 6
-#define MESSAGE_TYPE_STATUS_ALIVE 7
-#define MESSAGE_TYPE_STATUS_ISALIVE 8
-#define MESSAGE_TYPE_CHAT_NOSEQ 9
-#define MESSAGE_TYPE_UPDATE 10
-#define DEFAULT_INTERFACE "eth0"
+#define DEFAULT_INTERFACE "em1"
 
 #define MESSAGE_SIZE 2048
 #define MAX_USERS 25
@@ -42,5 +59,23 @@
 
 #define BEAT "BEAT"
 #define RESPONSE_BEAT "ALIVE"
+
+//Function declarations
+void addUser(char ipaddress[],int portNum,char username[]);
+
+void addSocket(char ipaddress[], int portNum);
+
+void addUserlist(char ipaddress[],int portNum, char username[],char rxsize[]);
+
+int populatelistofUsers(char *users);
+
+void sendlist(char *msg);
+
+void populatesocketClient(char userList[],int numUser);
+
+void incrementCount();
+
+void initializeCount();
+
 
 #endif /* SRC_HEADERS_DEFS_H_ */

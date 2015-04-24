@@ -1,7 +1,5 @@
-#include<sys/types.h>
-#include<sys/socket.h>
-#include<netdb.h>
-#include<string>
+#include "defs.h"
+
 std::string findip();
 class udp_Server{
 public :
