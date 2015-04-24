@@ -104,9 +104,8 @@ void *printConsole(void *id){
 #endif
 			//msg = curNode->printQueue.front();
 			msg =curNode->printQueue.pop();
-
+			msg = string(decrypt(const_cast<char*>(msg.c_str())));
 			cout <<msg<<endl;
-
 	}
 
 }
@@ -348,6 +347,9 @@ void *sendMsg(void *id){
 			string content = msgTosend.sContent;
 			list<USERINFO> users = curNode->listofUsers;
 			msgTosend.lSequenceNums = seqNum;
+			if(msgTosend.sType == MESSAGE_TYPE_CHAT){
+				strcpy(msgTosend.sContent ,encrypt(msgTosend.sContent));
+			}
 
 
 		}
@@ -919,7 +921,7 @@ int main(int argc, char *argv[]) {
 	if(argc == 3){
 		isSeq = false;
 		entry = 0;
-		cout <<username <<" starting a new chat on "
+		cout <<username <<" Joining a chat on "
 				<<argv[2]<<" listening on "<< ipaddress << ":"<<portNum<<endl;
 	}
 
